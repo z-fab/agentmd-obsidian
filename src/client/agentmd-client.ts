@@ -39,6 +39,20 @@ export class AgentmdClient {
     return this.request<T>("DELETE", path);
   }
 
+  /**
+   * Probes `GET /health`. Returns `true` if the backend responded 2xx with
+   * `{"status": "ok"}`, `false` on any error or unexpected response. Never
+   * throws — this method exists to be called repeatedly by a monitor.
+   */
+  async health(): Promise<boolean> {
+    try {
+      const result = await this.get<{ status: string }>("/health");
+      return result?.status === "ok";
+    } catch {
+      return false;
+    }
+  }
+
   private request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const payload = body == null ? undefined : JSON.stringify(body);
     const headers: Record<string, string> = {

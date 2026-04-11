@@ -192,3 +192,39 @@ describe("AgentmdClient.del()", () => {
     expect(receivedPath).toBe("/executions/7");
   });
 });
+
+describe("AgentmdClient.health()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => {
+    socketPath = tempSocketPath();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("returns true when backend responds 200 with status ok", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.url).toBe("/health");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok" }));
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    const alive = await client.health();
+
+    expect(alive).toBe(true);
+  });
+
+  it("returns false when backend is unreachable", async () => {
+    // No server bound.
+    const client = new AgentmdClient({ socketPath });
+    const alive = await client.health();
+
+    expect(alive).toBe(false);
+  });
+});
