@@ -269,3 +269,50 @@ describe("AgentmdClient.info()", () => {
     expect(info.scheduler.running).toBe(true);
   });
 });
+
+describe("AgentmdClient.listAgents()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => {
+    socketPath = tempSocketPath();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("returns an array of AgentSummary", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.url).toBe("/agents");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify([
+          {
+            name: "research",
+            description: "Research topics and summarize.",
+            trigger: null,
+            model: { provider: "anthropic", name: "claude-sonnet-4-6" },
+          },
+          {
+            name: "daily-summary",
+            description: "Summarize vault changes.",
+            trigger: { type: "schedule", every: "1h" },
+            model: { provider: "google", name: "gemini-2.5-flash" },
+            next_run: "2026-04-11T13:00:00Z",
+          },
+        ]),
+      );
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    const agents = await client.listAgents();
+
+    expect(agents).toHaveLength(2);
+    expect(agents[0].name).toBe("research");
+    expect(agents[1].trigger?.type).toBe("schedule");
+    expect(agents[1].next_run).toBe("2026-04-11T13:00:00Z");
+  });
+});

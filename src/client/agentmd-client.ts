@@ -1,5 +1,5 @@
 import * as http from "node:http";
-import type { InfoResponse } from "../types";
+import type { AgentSummary, InfoResponse } from "../types";
 
 export interface AgentmdClientOptions {
   /**
@@ -57,6 +57,11 @@ export class AgentmdClient {
   /** Fetches backend info (version, workspace path, scheduler state). */
   async info(): Promise<InfoResponse> {
     return this.get<InfoResponse>("/info");
+  }
+
+  /** Fetches all agents from the backend. */
+  async listAgents(): Promise<AgentSummary[]> {
+    return this.get<AgentSummary[]>("/agents");
   }
 
   private request<T>(method: string, path: string, body?: unknown): Promise<T> {
