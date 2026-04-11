@@ -81,6 +81,13 @@ export class AgentmdClient {
               );
             }
           });
+          res.on("error", (err) => {
+            reject(
+              new AgentmdClientError(
+                `Response stream error on ${method} ${path}: ${err.message}`,
+              ),
+            );
+          });
         },
       );
 

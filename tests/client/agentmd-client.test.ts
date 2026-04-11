@@ -100,8 +100,8 @@ describe("AgentmdClient error handling", () => {
     });
 
     const client = new AgentmdClient({ socketPath });
+    await expect(client.get("/boom")).rejects.toBeInstanceOf(AgentmdClientError);
     await expect(client.get("/boom")).rejects.toMatchObject({
-      name: "AgentmdClientError",
       statusCode: 500,
       body: "backend on fire",
     });
@@ -110,6 +110,7 @@ describe("AgentmdClient error handling", () => {
   it("throws AgentmdClientError on connection failure", async () => {
     // No server started — socket does not exist.
     const client = new AgentmdClient({ socketPath });
+    await expect(client.get("/anything")).rejects.toBeInstanceOf(AgentmdClientError);
     await expect(client.get("/anything")).rejects.toMatchObject({
       name: "AgentmdClientError",
     });
