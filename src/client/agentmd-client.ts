@@ -1,0 +1,101 @@
+import * as http from "node:http";
+
+export interface AgentmdClientOptions {
+  /**
+   * Absolute filesystem path to the agentmd Unix domain socket.
+   * Defaults to `~/.local/state/agentmd/agentmd.sock` in settings but the
+   * client itself does not resolve `~` — the caller must pass an absolute path.
+   */
+  socketPath: string;
+}
+
+export class AgentmdClientError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number,
+    public readonly body?: string,
+  ) {
+    super(message);
+    this.name = "AgentmdClientError";
+  }
+}
+
+export class AgentmdClient {
+  readonly socketPath: string;
+
+  constructor(options: AgentmdClientOptions) {
+    this.socketPath = options.socketPath;
+  }
+
+  async get<T>(path: string): Promise<T> {
+    return this.request<T>("GET", path);
+  }
+
+  private request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const payload = body == null ? undefined : JSON.stringify(body);
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    if (payload != null) {
+      headers["Content-Type"] = "application/json";
+      headers["Content-Length"] = Buffer.byteLength(payload).toString();
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      const req = http.request(
+        {
+          socketPath: this.socketPath,
+          path,
+          method,
+          headers,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk) => chunks.push(chunk));
+          res.on("end", () => {
+            const raw = Buffer.concat(chunks).toString("utf8");
+            const status = res.statusCode ?? 0;
+            if (status < 200 || status >= 300) {
+              reject(
+                new AgentmdClientError(
+                  `HTTP ${status} on ${method} ${path}`,
+                  status,
+                  raw,
+                ),
+              );
+              return;
+            }
+            if (raw.length === 0) {
+              resolve(undefined as unknown as T);
+              return;
+            }
+            try {
+              resolve(JSON.parse(raw) as T);
+            } catch (err) {
+              reject(
+                new AgentmdClientError(
+                  `Failed to parse JSON response from ${method} ${path}: ${(err as Error).message}`,
+                  status,
+                  raw,
+                ),
+              );
+            }
+          });
+        },
+      );
+
+      req.on("error", (err) => {
+        reject(
+          new AgentmdClientError(
+            `Request error on ${method} ${path}: ${err.message}`,
+          ),
+        );
+      });
+
+      if (payload != null) {
+        req.write(payload);
+      }
+      req.end();
+    });
+  }
+}
