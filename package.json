@@ -1,0 +1,24 @@
+{
+  "name": "agentmd-obsidian",
+  "version": "0.1.0",
+  "description": "Obsidian plugin for the agentmd markdown-first agent runtime",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": ["obsidian-plugin", "agentmd"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.5.7",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  }
+}
