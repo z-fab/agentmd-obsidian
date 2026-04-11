@@ -1,4 +1,5 @@
 import * as http from "node:http";
+import type { InfoResponse } from "../types";
 
 export interface AgentmdClientOptions {
   /**
@@ -51,6 +52,11 @@ export class AgentmdClient {
     } catch {
       return false;
     }
+  }
+
+  /** Fetches backend info (version, workspace path, scheduler state). */
+  async info(): Promise<InfoResponse> {
+    return this.get<InfoResponse>("/info");
   }
 
   private request<T>(method: string, path: string, body?: unknown): Promise<T> {

@@ -228,3 +228,44 @@ describe("AgentmdClient.health()", () => {
     expect(alive).toBe(false);
   });
 });
+
+describe("AgentmdClient.info()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => {
+    socketPath = tempSocketPath();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("returns typed InfoResponse", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.url).toBe("/info");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          version: "0.8.0",
+          pid: 12345,
+          uptime_seconds: 42,
+          workspace: "/Users/zfab/agentmd",
+          agents_dir: "/Users/zfab/agentmd/agents",
+          agent_count: 3,
+          scheduler: { running: true, paused: false, job_count: 1 },
+        }),
+      );
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    const info = await client.info();
+
+    expect(info.version).toBe("0.8.0");
+    expect(info.workspace).toBe("/Users/zfab/agentmd");
+    expect(info.agent_count).toBe(3);
+    expect(info.scheduler.running).toBe(true);
+  });
+});
