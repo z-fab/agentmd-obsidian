@@ -116,3 +116,79 @@ describe("AgentmdClient error handling", () => {
     });
   });
 });
+
+describe("AgentmdClient.post()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => {
+    socketPath = tempSocketPath();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("sends JSON body and parses the response", async () => {
+    let receivedBody: string | undefined;
+    let receivedMethod: string | undefined;
+    let receivedContentType: string | undefined;
+
+    server = await startFakeServer(socketPath, (req, res) => {
+      receivedMethod = req.method;
+      receivedContentType = req.headers["content-type"];
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk) => chunks.push(chunk));
+      req.on("end", () => {
+        receivedBody = Buffer.concat(chunks).toString("utf8");
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ execution_id: 42 }));
+      });
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    const result = await client.post<{ execution_id: number }>("/agents/foo/run", {
+      args: ["bar"],
+    });
+
+    expect(receivedMethod).toBe("POST");
+    expect(receivedContentType).toBe("application/json");
+    expect(JSON.parse(receivedBody!)).toEqual({ args: ["bar"] });
+    expect(result.execution_id).toBe(42);
+  });
+});
+
+describe("AgentmdClient.del()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => {
+    socketPath = tempSocketPath();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await stopServer(server, socketPath);
+    }
+  });
+
+  it("sends a DELETE request", async () => {
+    let receivedMethod: string | undefined;
+    let receivedPath: string | undefined;
+
+    server = await startFakeServer(socketPath, (req, res) => {
+      receivedMethod = req.method;
+      receivedPath = req.url;
+      res.writeHead(204);
+      res.end();
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    await client.del("/executions/7");
+
+    expect(receivedMethod).toBe("DELETE");
+    expect(receivedPath).toBe("/executions/7");
+  });
+});

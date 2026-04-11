@@ -31,6 +31,14 @@ export class AgentmdClient {
     return this.request<T>("GET", path);
   }
 
+  async post<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>("POST", path, body);
+  }
+
+  async del<T = void>(path: string): Promise<T> {
+    return this.request<T>("DELETE", path);
+  }
+
   private request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const payload = body == null ? undefined : JSON.stringify(body);
     const headers: Record<string, string> = {
