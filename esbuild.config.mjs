@@ -29,6 +29,8 @@ const context = await esbuild.context({
     "@lezer/highlight",
     "@lezer/lr",
     ...builtins,
+    // node: prefix variants (e.g. "node:http") are not covered by builtin-modules
+    ...builtins.map((m) => `node:${m}`),
   ],
   format: "cjs",
   target: "es2022",
