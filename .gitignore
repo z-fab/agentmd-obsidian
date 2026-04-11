@@ -1,0 +1,26 @@
+# Build output
+main.js
+main.js.map
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Test output
+coverage/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Superpowers brainstorm scratch
+.superpowers/
+
+# Obsidian test vaults (local dev only)
+test-vault/
