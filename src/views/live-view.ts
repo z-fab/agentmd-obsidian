@@ -12,6 +12,7 @@ export class LiveView extends ItemView {
   private store: EventStore;
   private actions: LiveViewActions;
   private unsub: (() => void) | null = null;
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: LiveViewActions) {
     super(leaf);
@@ -30,6 +31,19 @@ export class LiveView extends ItemView {
 
   async onClose(): Promise<void> {
     this.unsub?.();
+    this.stopTick();
+  }
+
+  private startTick(): void {
+    if (this.tickTimer) return;
+    this.tickTimer = setInterval(() => this.render(), 1000);
+  }
+
+  private stopTick(): void {
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
   }
 
   private render(): void {
@@ -44,12 +58,16 @@ export class LiveView extends ItemView {
     header.createSpan({ cls: "agentmd-view-count", text: count > 0 ? `${count} active` : "" });
 
     if (count === 0) {
+      this.stopTick();
       container.createDiv({
         cls: "agentmd-empty",
         text: "No running executions. Click ▶ on an agent to start one.",
       });
       return;
     }
+
+    // Timer ticks every 1s to keep elapsed time fresh
+    this.startTick();
 
     // Cards sorted by most recent first
     const runs = [...this.store.running.values()].sort(

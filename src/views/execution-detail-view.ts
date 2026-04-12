@@ -18,6 +18,8 @@ export class ExecutionDetailView extends ItemView {
   private actions: ExecDetailActions;
   private executionId: number = 0;
   private unsub: (() => void) | null = null;
+  private unsubHistory: (() => void) | null = null;
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: ExecDetailActions) {
     super(leaf);
@@ -38,6 +40,17 @@ export class ExecutionDetailView extends ItemView {
     this.unsub = this.store.onRunningChanged(() => {
       if (this.store.running.has(this.executionId)) {
         this.render();
+      } else if (this.tickTimer) {
+        // Execution just completed — re-render to show completed mode
+        this.stopTick();
+        this.render();
+      }
+    });
+    // Also listen to history changes so we render completed mode
+    // when the execution transitions from running → history
+    this.unsubHistory = this.store.onHistoryChanged(() => {
+      if (!this.store.running.has(this.executionId)) {
+        this.render();
       }
     });
     this.render();
@@ -45,6 +58,20 @@ export class ExecutionDetailView extends ItemView {
 
   async onClose(): Promise<void> {
     this.unsub?.();
+    this.unsubHistory?.();
+    this.stopTick();
+  }
+
+  private startTick(): void {
+    if (this.tickTimer) return;
+    this.tickTimer = setInterval(() => this.render(), 1000);
+  }
+
+  private stopTick(): void {
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
   }
 
   private render(): void {
@@ -54,8 +81,10 @@ export class ExecutionDetailView extends ItemView {
 
     const running = this.store.running.get(this.executionId);
     if (running) {
+      this.startTick();
       this.renderStreaming(container, running);
     } else {
+      this.stopTick();
       // Check history for a completed execution
       const completed = this.store.history.find((e) => e.id === this.executionId);
       if (completed) {
