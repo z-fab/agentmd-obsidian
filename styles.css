@@ -5,8 +5,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+.agentmd-status-dot {
+  margin-right: 4px;
+}
+
+.agentmd-status-online .agentmd-status-dot {
+  animation: agentmd-pulse 2s ease-in-out infinite;
+}
+
+@keyframes agentmd-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .agentmd-status-bar.agentmd-status-online {
-  color: var(--text-muted);
+  color: #10b981;
 }
 
 .agentmd-status-bar.agentmd-status-offline {

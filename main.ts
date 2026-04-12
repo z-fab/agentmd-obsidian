@@ -40,10 +40,11 @@ export default class AgentmdPlugin extends Plugin {
   }
 
   private renderStatusBar(online: boolean): void {
-    // Use textContent rather than innerHTML — safer, and sufficient.
-    this.statusBarEl.setText(
-      online ? "● agentmd · online" : "● agentmd · offline",
-    );
+    this.statusBarEl.empty();
+    const dot = this.statusBarEl.createSpan({ cls: "agentmd-status-dot" });
+    dot.setText("●");
+    const label = this.statusBarEl.createSpan();
+    label.setText("AgentMD");
     this.statusBarEl.toggleClass("agentmd-status-online", online);
     this.statusBarEl.toggleClass("agentmd-status-offline", !online);
   }
