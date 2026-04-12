@@ -80,3 +80,40 @@ export interface ExecutionSummary {
   /** Error tag for failed/aborted runs (e.g. "tool_error", "cost_cap"). */
   error_tag?: string;
 }
+
+// ---------- SSE events ----------
+
+export interface SSEToolCall {
+  name: string;
+  args: string;
+}
+
+export interface SSEEventData {
+  event_type?: string;
+  agent_name?: string;
+  content?: string;
+  tools?: SSEToolCall[];
+  tool_name?: string;
+  /** Only on complete events */
+  status?: string;
+  duration_ms?: number;
+  total_tokens?: number;
+  cost_usd?: number;
+  error?: string;
+}
+
+export interface ParsedSSEEvent {
+  /** SSE event type: message, ai, tool_call, tool_result, meta, final_answer, complete */
+  type: string;
+  /** Sequence ID from backend — used for dedup on reconnect */
+  id: string;
+  /** Parsed JSON payload */
+  data: SSEEventData;
+}
+
+// ---------- Run request ----------
+
+export interface RunRequest {
+  args?: string[];
+  message?: string;
+}
