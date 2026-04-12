@@ -5,16 +5,19 @@ import type { AgentSummary, ExecutionSummary, ParsedSSEEvent } from "../../src/t
 const AGENT_RESEARCH: AgentSummary = {
   name: "research",
   description: "Research topics",
-  trigger: null,
-  model: { provider: "anthropic", name: "claude-sonnet-4-6" },
+  enabled: true,
+  trigger_type: "manual",
+  model_provider: "anthropic",
+  model_name: "claude-sonnet-4-6",
 };
 
 const AGENT_DAILY: AgentSummary = {
   name: "daily-summary",
   description: "Summarize vault",
-  trigger: { type: "schedule", every: "1h" },
-  model: { provider: "google", name: "gemini-2.5-flash" },
-  next_run: "2026-04-11T13:00:00Z",
+  enabled: true,
+  trigger_type: "schedule",
+  model_provider: "google",
+  model_name: "gemini-2.5-flash",
 };
 
 describe("EventStore — agents", () => {
@@ -73,11 +76,12 @@ describe("EventStore — running executions", () => {
     store.startExecution(42, "research", "manual");
     store.completeExecution(42, {
       id: 42,
-      agent: "research",
+      agent_id: "research",
       status: "success",
+      trigger: "manual",
       started_at: "2026-04-11T12:00:00Z",
-      duration_seconds: 28,
-      tokens_total: 1400,
+      duration_ms: 28000,
+      total_tokens: 1400,
       cost_usd: 0.003,
     });
 

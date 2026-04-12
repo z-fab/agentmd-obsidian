@@ -1,7 +1,7 @@
 /**
  * Types mirroring the agentmd HTTP API contract (v0.8+).
  *
- * Reference: ../../../agentmd/docs/api.md
+ * Reference: agentmd/agent_md/api/schemas.py
  *
  * These are deliberately minimal — they cover the fields the plugin consumes.
  * New fields can be added as plans expand.
@@ -18,67 +18,49 @@ export interface InfoResponse {
   version: string;
   pid: number;
   uptime_seconds: number;
-  workspace: string;
-  agents_dir: string;
-  agent_count: number;
-  scheduler: {
-    running: boolean;
-    paused: boolean;
-    job_count: number;
-  };
+  agents_loaded: number;
+  agents_enabled: number;
+  scheduler_status: string;
+  watcher_active: boolean;
+  active_streams: number;
+  active_executions: number;
 }
 
 // ---------- Agents ----------
 
-export type TriggerType = "manual" | "schedule" | "watch";
-
-export interface AgentTrigger {
-  type: TriggerType;
-  /** For schedule triggers: cron expression or interval (e.g. "1h") */
-  every?: string;
-  cron?: string;
-  /** For watch triggers: glob or directory */
-  paths?: string[];
-}
-
 export interface AgentSummary {
   name: string;
-  description?: string;
-  /** Trigger metadata. `null` means manual. */
-  trigger: AgentTrigger | null;
-  model: {
-    provider: string;
-    name: string;
-  };
-  /** ISO timestamp of the next scheduled run, when applicable. */
-  next_run?: string;
-  /** ISO timestamp of the most recent completed run, when available. */
-  last_run?: string;
+  description: string;
+  enabled: boolean;
+  trigger_type: string;
+  model_provider: string | null;
+  model_name: string | null;
+}
+
+export interface AgentDetail extends AgentSummary {
+  last_run: string | null;
+  next_run: string | null;
+  history: string;
+  settings: Record<string, unknown>;
 }
 
 // ---------- Executions ----------
 
-export type ExecutionStatus =
-  | "pending"
-  | "running"
-  | "success"
-  | "failed"
-  | "aborted"
-  | "orphaned";
+export type ExecutionStatus = string;
 
 export interface ExecutionSummary {
   id: number;
-  agent: string;
-  status: ExecutionStatus;
+  agent_id: string;
+  status: string;
+  trigger: string;
   started_at: string;
-  finished_at?: string;
-  duration_seconds?: number;
-  tokens_total?: number;
-  cost_usd?: number;
-  /** Trigger source for this particular execution. */
-  trigger_source?: "manual" | "scheduler" | "watch" | "api";
-  /** Error tag for failed/aborted runs (e.g. "tool_error", "cost_cap"). */
-  error_tag?: string;
+  finished_at?: string | null;
+  duration_ms?: number | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  cost_usd?: number | null;
+  error?: string | null;
 }
 
 // ---------- SSE events ----------
@@ -109,6 +91,19 @@ export interface ParsedSSEEvent {
   id: string;
   /** Parsed JSON payload */
   data: SSEEventData;
+}
+
+// ---------- Scheduler ----------
+
+export interface SchedulerJob {
+  agent_name: string;
+  trigger_type: string;
+  next_run: string | null;
+}
+
+export interface SchedulerStatus {
+  status: string;
+  jobs: SchedulerJob[];
 }
 
 // ---------- Run request ----------

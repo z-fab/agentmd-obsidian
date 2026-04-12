@@ -252,10 +252,12 @@ describe("AgentmdClient.info()", () => {
           version: "0.8.0",
           pid: 12345,
           uptime_seconds: 42,
-          workspace: "/Users/zfab/agentmd",
-          agents_dir: "/Users/zfab/agentmd/agents",
-          agent_count: 3,
-          scheduler: { running: true, paused: false, job_count: 1 },
+          agents_loaded: 3,
+          agents_enabled: 3,
+          scheduler_status: "running",
+          watcher_active: false,
+          active_streams: 0,
+          active_executions: 0,
         }),
       );
     });
@@ -264,9 +266,8 @@ describe("AgentmdClient.info()", () => {
     const info = await client.info();
 
     expect(info.version).toBe("0.8.0");
-    expect(info.workspace).toBe("/Users/zfab/agentmd");
-    expect(info.agent_count).toBe(3);
-    expect(info.scheduler.running).toBe(true);
+    expect(info.agents_loaded).toBe(3);
+    expect(info.scheduler_status).toBe("running");
   });
 });
 
@@ -293,15 +294,18 @@ describe("AgentmdClient.listAgents()", () => {
           {
             name: "research",
             description: "Research topics and summarize.",
-            trigger: null,
-            model: { provider: "anthropic", name: "claude-sonnet-4-6" },
+            enabled: true,
+            trigger_type: "manual",
+            model_provider: "anthropic",
+            model_name: "claude-sonnet-4-6",
           },
           {
             name: "daily-summary",
             description: "Summarize vault changes.",
-            trigger: { type: "schedule", every: "1h" },
-            model: { provider: "google", name: "gemini-2.5-flash" },
-            next_run: "2026-04-11T13:00:00Z",
+            enabled: true,
+            trigger_type: "schedule",
+            model_provider: "google",
+            model_name: "gemini-2.5-flash",
           },
         ]),
       );
@@ -312,8 +316,7 @@ describe("AgentmdClient.listAgents()", () => {
 
     expect(agents).toHaveLength(2);
     expect(agents[0].name).toBe("research");
-    expect(agents[1].trigger?.type).toBe("schedule");
-    expect(agents[1].next_run).toBe("2026-04-11T13:00:00Z");
+    expect(agents[1].trigger_type).toBe("schedule");
   });
 });
 

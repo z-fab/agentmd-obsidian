@@ -154,14 +154,15 @@ export default class AgentmdPlugin extends Plugin {
           // Build a summary from the event data
           const summary: ExecutionSummary = {
             id: executionId,
-            agent: this.store.running.get(executionId)?.agent ?? "unknown",
+            agent_id: this.store.running.get(executionId)?.agent ?? "unknown",
             status: event.data.status === "success" ? "success" :
                     event.data.status === "error" ? "failed" : "aborted",
+            trigger: this.store.running.get(executionId)?.triggerSource ?? "manual",
             started_at: new Date(this.store.running.get(executionId)?.startedAt ?? Date.now()).toISOString(),
-            duration_seconds: event.data.duration_ms != null ? event.data.duration_ms / 1000 : undefined,
-            tokens_total: event.data.total_tokens,
+            duration_ms: event.data.duration_ms,
+            total_tokens: event.data.total_tokens,
             cost_usd: event.data.cost_usd,
-            error_tag: event.data.error,
+            error: event.data.error,
           };
           this.store.completeExecution(executionId, summary);
           this.sseConnections.delete(executionId);
@@ -184,9 +185,10 @@ export default class AgentmdPlugin extends Plugin {
     if (this.settings.notifications === "failures" && summary.status === "success") return;
 
     const icon = summary.status === "success" ? "✓" : "✗";
-    const duration = summary.duration_seconds != null ? `${Math.round(summary.duration_seconds)}s` : "";
+    const durationSec = summary.duration_ms != null ? Math.round(summary.duration_ms / 1000) : null;
+    const duration = durationSec != null ? `${durationSec}s` : "";
     const cost = summary.cost_usd != null ? `$${summary.cost_usd.toFixed(3)}` : "";
-    new Notice(`${icon} ${summary.agent} ${summary.status} · ${duration} · ${cost}`);
+    new Notice(`${icon} ${summary.agent_id} ${summary.status} · ${duration} · ${cost}`);
   }
 
   // ---- Background execution detection ----
@@ -197,7 +199,7 @@ export default class AgentmdPlugin extends Plugin {
       for (const exec of running) {
         if (!this.store.running.has(exec.id) && !this.sseConnections.has(exec.id)) {
           // New background execution we don't know about
-          this.store.startExecution(exec.id, exec.agent, exec.trigger_source ?? "scheduler");
+          this.store.startExecution(exec.id, exec.agent_id, exec.trigger ?? "scheduler");
           this.subscribeToExecution(exec.id);
         }
       }

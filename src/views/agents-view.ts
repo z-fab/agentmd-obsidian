@@ -74,8 +74,10 @@ export class AgentsView extends ItemView {
 
     // Row 3: model chip + run buttons
     const footer = card.createDiv({ cls: "agent-footer" });
-    const modelText = `${agent.model.provider} · ${agent.model.name}`;
-    footer.createSpan({ cls: "agentmd-chip model", text: modelText });
+    if (agent.model_provider || agent.model_name) {
+      const modelText = `${agent.model_provider ?? "?"} · ${agent.model_name ?? "default"}`;
+      footer.createSpan({ cls: "agentmd-chip model", text: modelText });
+    }
 
     const actions = footer.createDiv({ cls: "agent-actions" });
 
@@ -112,17 +114,15 @@ export class AgentsView extends ItemView {
       container.createSpan({ cls: "agentmd-chip running", text });
       return;
     }
-    if (!agent.trigger || agent.trigger.type === "manual") {
+    const tt = agent.trigger_type ?? "manual";
+    if (tt === "manual" || tt === "none") {
       container.createSpan({ cls: "agentmd-chip manual", text: "Manual" });
-    } else if (agent.trigger.type === "schedule") {
-      const info = agent.trigger.every ?? agent.trigger.cron ?? "";
-      const text = agent.next_run
-        ? `⏱ ${info} · in ${this.timeUntil(agent.next_run)}`
-        : `⏱ ${info}`;
-      container.createSpan({ cls: "agentmd-chip scheduled", text });
-    } else if (agent.trigger.type === "watch") {
-      const paths = agent.trigger.paths?.join(", ") ?? "";
-      container.createSpan({ cls: "agentmd-chip watch", text: `👁 ${paths}` });
+    } else if (tt === "schedule") {
+      container.createSpan({ cls: "agentmd-chip scheduled", text: "⏱ Scheduled" });
+    } else if (tt === "watch") {
+      container.createSpan({ cls: "agentmd-chip watch", text: "👁 Watch" });
+    } else {
+      container.createSpan({ cls: "agentmd-chip manual", text: tt });
     }
   }
 

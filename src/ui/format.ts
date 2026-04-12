@@ -9,13 +9,13 @@ export function formatDuration(seconds: number | undefined): string {
   return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
 }
 
-export function formatTokens(tokens: number | undefined): string {
+export function formatTokens(tokens: number | null | undefined): string {
   if (tokens == null) return "—";
   if (tokens < 1000) return `${tokens} tok`;
   return `${(tokens / 1000).toFixed(1)}k tok`;
 }
 
-export function formatCost(cost: number | undefined): string {
+export function formatCost(cost: number | null | undefined): string {
   if (cost == null) return "—";
   if (cost < 0.01) return `$${cost.toFixed(3)}`;
   return `$${cost.toFixed(2)}`;

@@ -105,18 +105,18 @@ export class ExecutionDetailView extends ItemView {
     const title = header.createDiv({ cls: "exec-title" });
     const statusIcon = exec.status === "success" ? "✓" : exec.status === "failed" ? "✗" : "⚠";
     title.createSpan({ cls: `agentmd-status-${exec.status === "success" ? "success" : exec.status === "failed" ? "failed" : "aborted"}`, text: statusIcon });
-    title.createSpan({ text: exec.agent });
+    title.createSpan({ text: exec.agent_id });
     title.createSpan({ cls: "exec-id", text: `#${exec.id}` });
 
     const rerunBtn = title.createEl("button", { cls: "agentmd-btn", text: "↻ Re-run" });
     rerunBtn.style.marginLeft = "auto";
-    rerunBtn.addEventListener("click", () => this.actions.onRerun(exec.agent));
+    rerunBtn.addEventListener("click", () => this.actions.onRerun(exec.agent_id));
 
     // Stats
     const stats = header.createDiv({ cls: "exec-stats" });
     stats.createSpan({ cls: `agentmd-status-${statusClass}`, text: `${statusIcon} ${exec.status}` });
-    stats.createSpan({ text: formatDuration(exec.duration_seconds) });
-    stats.createSpan({ text: formatTokens(exec.tokens_total) });
+    stats.createSpan({ text: formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined) });
+    stats.createSpan({ text: formatTokens(exec.total_tokens) });
     stats.createSpan({ text: formatCost(exec.cost_usd) });
 
     // Final answer (if the running execution captured it before completing)
