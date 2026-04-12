@@ -1,5 +1,6 @@
 import * as http from "node:http";
-import type { AgentSummary, InfoResponse } from "../types";
+import type { AgentSummary, ExecutionSummary, InfoResponse, ParsedSSEEvent, RunRequest } from "../types";
+import { SSEParser } from "./sse-parser";
 
 export interface AgentmdClientOptions {
   /**
@@ -62,6 +63,81 @@ export class AgentmdClient {
   /** Fetches all agents from the backend. */
   async listAgents(): Promise<AgentSummary[]> {
     return this.get<AgentSummary[]>("/agents");
+  }
+
+  /** Starts an agent execution. Returns the new execution ID. */
+  async runAgent(
+    name: string,
+    opts?: RunRequest,
+  ): Promise<{ execution_id: number }> {
+    return this.post<{ execution_id: number }>(
+      `/agents/${encodeURIComponent(name)}/run`,
+      opts,
+    );
+  }
+
+  /** Cancels a running execution. */
+  async cancelExecution(id: number): Promise<void> {
+    await this.del(`/executions/${id}`);
+  }
+
+  /** Fetches executions, optionally filtered. */
+  async listExecutions(params?: {
+    status?: string;
+    agent?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<ExecutionSummary[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set("status", params.status);
+    if (params?.agent) query.set("agent", params.agent);
+    if (params?.limit != null) query.set("limit", String(params.limit));
+    if (params?.offset != null) query.set("offset", String(params.offset));
+    const qs = query.toString();
+    return this.get<ExecutionSummary[]>(`/executions${qs ? `?${qs}` : ""}`);
+  }
+
+  /**
+   * Opens an SSE stream on the given path. Calls `onEvent` for each parsed
+   * event. Returns a function that closes the connection.
+   *
+   * The caller is responsible for reconnect logic — this method opens a
+   * single connection.
+   */
+  openSSE(
+    path: string,
+    onEvent: (event: ParsedSSEEvent) => void,
+    onError?: (err: Error) => void,
+    onEnd?: () => void,
+  ): () => void {
+    const parser = new SSEParser();
+
+    const req = http.request(
+      {
+        socketPath: this.socketPath,
+        path,
+        method: "GET",
+        headers: { Accept: "text/event-stream" },
+      },
+      (res) => {
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => {
+          const events = parser.push(chunk);
+          for (const event of events) {
+            onEvent(event);
+          }
+        });
+        res.on("error", (err) => onError?.(err));
+        res.on("end", () => onEnd?.());
+      },
+    );
+
+    req.on("error", (err) => onError?.(err));
+    req.end();
+
+    return () => {
+      req.destroy();
+    };
   }
 
   private request<T>(method: string, path: string, body?: unknown): Promise<T> {

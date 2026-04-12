@@ -316,3 +316,85 @@ describe("AgentmdClient.listAgents()", () => {
     expect(agents[1].next_run).toBe("2026-04-11T13:00:00Z");
   });
 });
+
+describe("AgentmdClient.runAgent()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("POSTs to /agents/{name}/run and returns execution_id", async () => {
+    let receivedPath: string | undefined;
+    let receivedBody: string | undefined;
+
+    server = await startFakeServer(socketPath, (req, res) => {
+      receivedPath = req.url;
+      const chunks: Buffer[] = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => {
+        receivedBody = Buffer.concat(chunks).toString("utf8");
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ execution_id: 99 }));
+      });
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    const result = await client.runAgent("research", { args: ["/path/to/file.md"] });
+
+    expect(receivedPath).toBe("/agents/research/run");
+    expect(JSON.parse(receivedBody!)).toEqual({ args: ["/path/to/file.md"] });
+    expect(result.execution_id).toBe(99);
+  });
+});
+
+describe("AgentmdClient.cancelExecution()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("sends DELETE /executions/{id}", async () => {
+    let receivedPath: string | undefined;
+    let receivedMethod: string | undefined;
+
+    server = await startFakeServer(socketPath, (req, res) => {
+      receivedPath = req.url;
+      receivedMethod = req.method;
+      res.writeHead(204);
+      res.end();
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    await client.cancelExecution(42);
+
+    expect(receivedMethod).toBe("DELETE");
+    expect(receivedPath).toBe("/executions/42");
+  });
+});
+
+describe("AgentmdClient.listExecutions()", () => {
+  let socketPath: string;
+  let server: http.Server;
+
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("sends GET /executions with query params", async () => {
+    let receivedPath: string | undefined;
+
+    server = await startFakeServer(socketPath, (req, res) => {
+      receivedPath = req.url;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify([]));
+    });
+
+    const client = new AgentmdClient({ socketPath });
+    await client.listExecutions({ status: "running", limit: 10 });
+
+    expect(receivedPath).toContain("/executions");
+    expect(receivedPath).toContain("status=running");
+    expect(receivedPath).toContain("limit=10");
+  });
+});
