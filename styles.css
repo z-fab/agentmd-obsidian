@@ -1,1 +1,14 @@
-/* agentmd-obsidian styles — populated in Plan 2 */
+/* agentmd-obsidian — status bar indicator (Plan 1 only).
+   Richer styles and the full color system arrive in Plan 2. */
+
+.agentmd-status-bar {
+  font-variant-numeric: tabular-nums;
+}
+
+.agentmd-status-bar.agentmd-status-online {
+  color: var(--text-muted);
+}
+
+.agentmd-status-bar.agentmd-status-offline {
+  color: var(--text-faint);
+}
