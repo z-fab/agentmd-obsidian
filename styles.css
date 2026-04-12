@@ -1,27 +1,290 @@
-/* agentmd-obsidian — status bar indicator (Plan 1 only).
-   Richer styles and the full color system arrive in Plan 2. */
+/* ============================================================
+   agentmd-obsidian — Full style system
+   Color tokens, view layouts, and component styles.
+   ============================================================ */
 
+/* ---------- Color tokens ---------- */
+.agentmd-status-running  { color: #3b82f6; }
+.agentmd-status-success  { color: #10b981; }
+.agentmd-status-failed   { color: #ef4444; }
+.agentmd-status-aborted  { color: #f59e0b; }
+.agentmd-trigger-manual    { color: #888888; }
+.agentmd-trigger-scheduler { color: #fbbf24; }
+.agentmd-trigger-watch     { color: #06b6d4; }
+.agentmd-brand           { color: #8b5cf6; }
+
+/* ---------- Status bar ---------- */
 .agentmd-status-bar {
   font-variant-numeric: tabular-nums;
 }
-
 .agentmd-status-dot {
   margin-right: 4px;
 }
-
 .agentmd-status-online .agentmd-status-dot {
   animation: agentmd-pulse 2s ease-in-out infinite;
 }
-
 @keyframes agentmd-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-
 .agentmd-status-bar.agentmd-status-online {
   color: #10b981;
 }
-
 .agentmd-status-bar.agentmd-status-offline {
   color: var(--text-faint);
+}
+
+/* ---------- View headers ---------- */
+.agentmd-view-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.agentmd-view-header .agentmd-view-icon {
+  color: #8b5cf6;
+}
+.agentmd-view-header .agentmd-view-count {
+  color: var(--text-faint);
+  margin-left: auto;
+  font-size: var(--font-ui-smaller);
+}
+
+/* ---------- Chips ---------- */
+.agentmd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: var(--font-ui-smaller);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.agentmd-chip.running  { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.agentmd-chip.scheduled { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.agentmd-chip.watch    { background: rgba(6,182,212,0.15);  color: #06b6d4; }
+.agentmd-chip.manual   { background: var(--background-secondary); color: var(--text-faint); }
+.agentmd-chip.model    { background: transparent; color: var(--text-faint); border: 1px solid var(--background-modifier-border); }
+
+/* ---------- Action buttons ---------- */
+.agentmd-btn {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.agentmd-btn:hover {
+  background: var(--background-modifier-hover);
+}
+.agentmd-btn.primary {
+  background: rgba(139,92,246,0.2);
+  border-color: rgba(139,92,246,0.4);
+}
+.agentmd-btn.primary:hover {
+  background: rgba(139,92,246,0.3);
+}
+.agentmd-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Agent cards ---------- */
+.agentmd-agent-card {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+.agentmd-agent-card:hover {
+  background: var(--background-secondary);
+}
+.agentmd-agent-card.is-running {
+  border-left: 2px solid #3b82f6;
+  background: rgba(59,130,246,0.05);
+}
+.agentmd-agent-card .agent-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.agentmd-agent-card .agent-name {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+.agentmd-agent-card .agent-desc {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.agentmd-agent-card .agent-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agentmd-agent-card .agent-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+/* ---------- Live view cards ---------- */
+.agentmd-live-card {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+.agentmd-live-card:hover {
+  background: var(--background-secondary);
+}
+.agentmd-live-card .live-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-ui-small);
+}
+.agentmd-live-card .live-dot {
+  color: #3b82f6;
+}
+.agentmd-live-card .live-name {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+.agentmd-live-card .live-id {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+.agentmd-live-card .live-trigger {
+  font-size: var(--font-ui-smaller);
+}
+.agentmd-live-card .live-cancel {
+  margin-left: auto;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: var(--font-ui-smaller);
+}
+.agentmd-live-card .live-cancel:hover {
+  color: #ef4444;
+}
+.agentmd-live-card .live-activity {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  margin-top: 3px;
+  padding-left: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agentmd-live-card .live-stats {
+  display: flex;
+  gap: 8px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  margin-top: 3px;
+  padding-left: 14px;
+}
+
+/* ---------- Execution Detail ---------- */
+.agentmd-exec-detail .exec-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.agentmd-exec-detail .exec-header.streaming {
+  background: rgba(59,130,246,0.08);
+}
+.agentmd-exec-detail .exec-header.success {
+  background: rgba(16,185,129,0.08);
+}
+.agentmd-exec-detail .exec-header.failed {
+  background: rgba(239,68,68,0.08);
+}
+.agentmd-exec-detail .exec-header.aborted {
+  background: rgba(245,158,11,0.08);
+}
+.agentmd-exec-detail .exec-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+  margin-bottom: 5px;
+}
+.agentmd-exec-detail .exec-meta {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+.agentmd-exec-detail .exec-stats {
+  display: flex;
+  gap: 10px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.agentmd-exec-detail .exec-final-answer {
+  padding: 14px 16px;
+  background: rgba(16,185,129,0.06);
+  border-bottom: 1px solid rgba(16,185,129,0.15);
+}
+.agentmd-exec-detail .exec-final-answer .final-label {
+  font-size: var(--font-ui-smaller);
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.agentmd-exec-detail .exec-final-answer .final-content {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.6;
+}
+.agentmd-exec-detail .exec-log {
+  padding: 10px 16px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.agentmd-exec-detail .exec-log .log-tool-call { color: #10b981; }
+.agentmd-exec-detail .exec-log .log-tool-result { color: #8b5cf6; }
+.agentmd-exec-detail .exec-log .log-ai { color: var(--text-normal); }
+.agentmd-exec-detail .exec-log .log-cursor {
+  color: var(--text-faint);
+  animation: agentmd-blink 1s step-end infinite;
+}
+@keyframes agentmd-blink {
+  50% { opacity: 0; }
+}
+
+/* ---------- Empty states ---------- */
+.agentmd-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+}
+
+/* ---------- Offline banner ---------- */
+.agentmd-offline-banner {
+  padding: 8px 12px;
+  background: rgba(245,158,11,0.1);
+  border-bottom: 1px solid rgba(245,158,11,0.2);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
