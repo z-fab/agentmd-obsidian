@@ -14,10 +14,16 @@ export interface RunningExecution {
 
 type Listener = () => void;
 
+export interface CompletedSnapshot {
+  events: ParsedSSEEvent[];
+  finalAnswer?: string;
+}
+
 export class EventStore {
   private _agents: AgentSummary[] = [];
   private _running = new Map<number, RunningExecution>();
   private _history: ExecutionSummary[] = [];
+  private _completedSnapshots = new Map<number, CompletedSnapshot>();
 
   private agentListeners = new Set<Listener>();
   private runningListeners = new Set<Listener>();
@@ -107,7 +113,20 @@ export class EventStore {
     this.notify(this.runningListeners);
   }
 
+  /** Get the saved event log for a completed execution (if it was observed live). */
+  getCompletedSnapshot(executionId: number): CompletedSnapshot | undefined {
+    return this._completedSnapshots.get(executionId);
+  }
+
   completeExecution(executionId: number, summary: ExecutionSummary): void {
+    const running = this._running.get(executionId);
+    if (running) {
+      // Preserve events + final answer before deleting
+      this._completedSnapshots.set(executionId, {
+        events: running.events,
+        finalAnswer: running.finalAnswer,
+      });
+    }
     this._running.delete(executionId);
     // Prepend to history (most recent first)
     this._history = [summary, ...this._history];

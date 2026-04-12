@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import type { EventStore, RunningExecution } from "../store/event-store";
+import type { EventStore, RunningExecution, CompletedSnapshot } from "../store/event-store";
 import type { ExecutionSummary, ParsedSSEEvent } from "../types";
 import { VIEW_TYPE_EXEC_DETAIL } from "./constants";
 import { formatDuration, formatTokens, formatCost } from "../ui/format";
@@ -148,13 +148,25 @@ export class ExecutionDetailView extends ItemView {
     stats.createSpan({ text: formatTokens(exec.total_tokens) });
     stats.createSpan({ text: formatCost(exec.cost_usd) });
 
-    // Final answer (if the running execution captured it before completing)
-    // We look up the running execution's finalAnswer from a stored snapshot
-    // For now, show a placeholder — the full message log comes in Plan 3
-    container.createDiv({
-      cls: "agentmd-empty",
-      text: "Full execution log available in a future update.",
-    });
+    // Show final answer + event log from the snapshot (if we observed this execution live)
+    const snapshot = this.store.getCompletedSnapshot(exec.id);
+    if (snapshot?.finalAnswer) {
+      const answerBox = container.createDiv({ cls: "exec-final-answer" });
+      answerBox.createDiv({ cls: "final-label", text: `${statusIcon} Final answer` });
+      answerBox.createDiv({ cls: "final-content", text: snapshot.finalAnswer });
+    }
+
+    if (snapshot?.events.length) {
+      const logSection = container.createDiv({ cls: "exec-log" });
+      for (const event of snapshot.events) {
+        this.renderLogEvent(logSection, event);
+      }
+    } else {
+      container.createDiv({
+        cls: "agentmd-empty",
+        text: "Execution log not available (execution was not observed live).",
+      });
+    }
   }
 
   private renderLogEvent(container: HTMLElement, event: ParsedSSEEvent): void {
