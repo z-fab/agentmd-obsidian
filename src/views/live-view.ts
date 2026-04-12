@@ -95,7 +95,8 @@ export class LiveView extends ItemView {
       "agentmd-trigger-manual";
     headerEl.createSpan({ cls: `live-trigger ${triggerCls}`, text: `· ${run.triggerSource}` });
 
-    const cancel = headerEl.createSpan({ cls: "live-cancel", text: "✕" });
+    const cancel = headerEl.createSpan({ cls: "live-cancel", text: "■" });
+    cancel.title = "Stop execution";
     cancel.addEventListener("click", (e) => {
       e.stopPropagation();
       cancel.setText("…");

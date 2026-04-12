@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { Component, ItemView, MarkdownRenderer, WorkspaceLeaf } from "obsidian";
 import type { EventStore, RunningExecution, CompletedSnapshot } from "../store/event-store";
 import type { ExecutionSummary, ParsedSSEEvent } from "../types";
 import { VIEW_TYPE_EXEC_DETAIL } from "./constants";
@@ -20,6 +20,7 @@ export class ExecutionDetailView extends ItemView {
   private unsub: (() => void) | null = null;
   private unsubHistory: (() => void) | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private renderComponent: Component | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: ExecDetailActions) {
     super(leaf);
@@ -41,13 +42,10 @@ export class ExecutionDetailView extends ItemView {
       if (this.store.running.has(this.executionId)) {
         this.render();
       } else if (this.tickTimer) {
-        // Execution just completed — re-render to show completed mode
         this.stopTick();
         this.render();
       }
     });
-    // Also listen to history changes so we render completed mode
-    // when the execution transitions from running → history
     this.unsubHistory = this.store.onHistoryChanged(() => {
       if (!this.store.running.has(this.executionId)) {
         this.render();
@@ -60,6 +58,7 @@ export class ExecutionDetailView extends ItemView {
     this.unsub?.();
     this.unsubHistory?.();
     this.stopTick();
+    this.renderComponent?.unload();
   }
 
   private startTick(): void {
@@ -79,13 +78,17 @@ export class ExecutionDetailView extends ItemView {
     container.empty();
     container.addClass("agentmd-exec-detail");
 
+    // Clean up previous markdown render component
+    this.renderComponent?.unload();
+    this.renderComponent = new Component();
+    this.renderComponent.load();
+
     const running = this.store.running.get(this.executionId);
     if (running) {
       this.startTick();
       this.renderStreaming(container, running);
     } else {
       this.stopTick();
-      // Check history for a completed execution
       const completed = this.store.history.find((e) => e.id === this.executionId);
       if (completed) {
         this.renderCompleted(container, completed);
@@ -95,76 +98,110 @@ export class ExecutionDetailView extends ItemView {
     }
   }
 
-  private renderStreaming(container: HTMLElement, run: RunningExecution): void {
-    // Header — streaming mode (blue)
-    const header = container.createDiv({ cls: "exec-header streaming" });
-    const title = header.createDiv({ cls: "exec-title" });
-    title.createSpan({ cls: "agentmd-status-running", text: "●" });
-    title.createSpan({ text: run.agent });
-    title.createSpan({ cls: "exec-id", text: `#${run.id}` });
+  // ============================================================
+  //  STREAMING MODE
+  // ============================================================
 
-    const cancelBtn = title.createEl("button", { cls: "agentmd-btn", text: "■ Cancel" });
+  private renderStreaming(container: HTMLElement, run: RunningExecution): void {
+    // Header
+    const header = container.createDiv({ cls: "exec-header streaming" });
+    const titleRow = header.createDiv({ cls: "exec-title" });
+    titleRow.createSpan({ cls: "agentmd-status-running", text: "●" });
+    titleRow.createSpan({ text: ` ${run.agent}` });
+    titleRow.createSpan({ cls: "exec-id", text: `#${run.id}` });
+
+    const cancelBtn = titleRow.createEl("button", { cls: "agentmd-btn", text: "■ Stop" });
     cancelBtn.style.marginLeft = "auto";
     cancelBtn.addEventListener("click", () => {
-      cancelBtn.setText("Cancelling…");
+      cancelBtn.setText("Stopping…");
       cancelBtn.disabled = true;
       this.actions.onCancel(run.id);
     });
 
-    // Stats
+    // Status line: only elapsed time (tokens/cost come from backend only on complete)
     const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
-    const stats = header.createDiv({ cls: "exec-stats" });
-    stats.createSpan({ cls: "agentmd-status-running", text: "● running" });
-    stats.createSpan({ text: formatDuration(elapsed) });
-    stats.createSpan({ text: formatTokens(run.tokensTotal) });
-    stats.createSpan({ text: formatCost(run.costUsd) });
+    const statusLine = header.createDiv({ cls: "exec-stats" });
+    statusLine.createSpan({ cls: "agentmd-status-running", text: "● running" });
+    statusLine.createSpan({ text: formatDuration(elapsed) });
 
-    // Event log
-    const log = container.createDiv({ cls: "exec-log" });
+    // Log area
+    const logWrapper = container.createDiv({ cls: "exec-log-wrapper" });
+    logWrapper.createDiv({ cls: "exec-log-title", text: "Execution Log" });
+    const log = logWrapper.createDiv({ cls: "exec-log" });
+
     for (const event of run.events) {
       this.renderLogEvent(log, event);
     }
-    // Blinking cursor
     log.createSpan({ cls: "log-cursor", text: "▌" });
+
+    // Auto-scroll to bottom
+    requestAnimationFrame(() => {
+      log.scrollTop = log.scrollHeight;
+    });
   }
 
+  // ============================================================
+  //  COMPLETED MODE
+  // ============================================================
+
   private renderCompleted(container: HTMLElement, exec: ExecutionSummary): void {
-    const statusClass =
-      exec.status === "success" ? "success" :
-      exec.status === "failed" ? "failed" : "aborted";
+    const isSuccess = exec.status === "success";
+    const isFailed = exec.status === "failed" || exec.status === "error";
+    const statusClass = isSuccess ? "success" : isFailed ? "failed" : "aborted";
+    const statusIcon = isSuccess ? "✓" : isFailed ? "✗" : "⚠";
+    const snapshot = this.store.getCompletedSnapshot(exec.id);
 
     // Header
     const header = container.createDiv({ cls: `exec-header ${statusClass}` });
-    const title = header.createDiv({ cls: "exec-title" });
-    const statusIcon = exec.status === "success" ? "✓" : exec.status === "failed" ? "✗" : "⚠";
-    title.createSpan({ cls: `agentmd-status-${exec.status === "success" ? "success" : exec.status === "failed" ? "failed" : "aborted"}`, text: statusIcon });
-    title.createSpan({ text: exec.agent_id });
-    title.createSpan({ cls: "exec-id", text: `#${exec.id}` });
+    const titleRow = header.createDiv({ cls: "exec-title" });
+    titleRow.createSpan({ cls: `agentmd-status-${statusClass}`, text: statusIcon });
+    titleRow.createSpan({ text: ` ${exec.agent_id}` });
+    titleRow.createSpan({ cls: "exec-id", text: `#${exec.id}` });
 
-    const rerunBtn = title.createEl("button", { cls: "agentmd-btn", text: "↻ Re-run" });
+    const rerunBtn = titleRow.createEl("button", { cls: "agentmd-btn", text: "↻ Re-run" });
     rerunBtn.style.marginLeft = "auto";
     rerunBtn.addEventListener("click", () => this.actions.onRerun(exec.agent_id));
 
-    // Stats
-    const stats = header.createDiv({ cls: "exec-stats" });
-    stats.createSpan({ cls: `agentmd-status-${statusClass}`, text: `${statusIcon} ${exec.status}` });
-    stats.createSpan({ text: formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined) });
-    stats.createSpan({ text: formatTokens(exec.total_tokens) });
-    stats.createSpan({ text: formatCost(exec.cost_usd) });
+    // Stats row with all metrics
+    const statsRow = header.createDiv({ cls: "exec-stats-grid" });
+    this.renderStatBadge(statsRow, "Status", `${statusIcon} ${exec.status}`, `agentmd-status-${statusClass}`);
+    this.renderStatBadge(statsRow, "Duration", formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined));
+    this.renderStatBadge(statsRow, "Tokens", formatTokens(exec.total_tokens));
+    this.renderStatBadge(statsRow, "Cost", formatCost(exec.cost_usd));
 
-    // Show final answer + event log from the snapshot (if we observed this execution live)
-    const snapshot = this.store.getCompletedSnapshot(exec.id);
+    // Final answer — rendered as markdown
     if (snapshot?.finalAnswer) {
-      const answerBox = container.createDiv({ cls: "exec-final-answer" });
-      answerBox.createDiv({ cls: "final-label", text: `${statusIcon} Final answer` });
-      answerBox.createDiv({ cls: "final-content", text: snapshot.finalAnswer });
+      const answerSection = container.createDiv({ cls: "exec-final-answer" });
+      answerSection.createDiv({ cls: "final-label", text: `${statusIcon} Final Answer` });
+      const answerContent = answerSection.createDiv({ cls: "final-content" });
+      MarkdownRenderer.render(
+        this.app,
+        snapshot.finalAnswer,
+        answerContent,
+        "",
+        this.renderComponent!,
+      );
     }
 
+    // Execution log (collapsible)
     if (snapshot?.events.length) {
-      const logSection = container.createDiv({ cls: "exec-log" });
+      const logWrapper = container.createDiv({ cls: "exec-log-wrapper" });
+      const logHeader = logWrapper.createDiv({ cls: "exec-log-title clickable" });
+      logHeader.createSpan({ text: `▶ Execution Log · ${this.countToolCalls(snapshot.events)} tool calls` });
+
+      const log = logWrapper.createDiv({ cls: "exec-log collapsed" });
       for (const event of snapshot.events) {
-        this.renderLogEvent(logSection, event);
+        this.renderLogEvent(log, event);
       }
+
+      logHeader.addEventListener("click", () => {
+        const isCollapsed = log.hasClass("collapsed");
+        log.toggleClass("collapsed", !isCollapsed);
+        logHeader.empty();
+        logHeader.createSpan({
+          text: `${isCollapsed ? "▼" : "▶"} Execution Log · ${this.countToolCalls(snapshot.events)} tool calls`,
+        });
+      });
     } else {
       container.createDiv({
         cls: "agentmd-empty",
@@ -173,21 +210,39 @@ export class ExecutionDetailView extends ItemView {
     }
   }
 
+  // ============================================================
+  //  HELPERS
+  // ============================================================
+
+  private renderStatBadge(container: HTMLElement, label: string, value: string, valueCls?: string): void {
+    const badge = container.createDiv({ cls: "exec-stat-badge" });
+    badge.createDiv({ cls: "exec-stat-label", text: label });
+    const valEl = badge.createDiv({ cls: "exec-stat-value", text: value });
+    if (valueCls) valEl.addClass(valueCls);
+  }
+
+  private countToolCalls(events: ParsedSSEEvent[]): number {
+    return events.filter((e) => e.type === "tool_call").length;
+  }
+
   private renderLogEvent(container: HTMLElement, event: ParsedSSEEvent): void {
-    const line = container.createDiv();
     if (event.type === "tool_call" && event.data.tools?.length) {
+      const line = container.createDiv({ cls: "log-line" });
       line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${event.data.tools[0].name}` });
       if (event.data.tools[0].args) {
-        line.createSpan({ text: ` (${event.data.tools[0].args})`, cls: "exec-meta" });
+        line.createSpan({ cls: "log-args", text: ` ${event.data.tools[0].args}` });
       }
     } else if (event.type === "tool_result") {
+      const line = container.createDiv({ cls: "log-line" });
       line.createSpan({ cls: "log-tool-result", text: `📎 << ${event.data.tool_name ?? "result"}` });
       if (event.data.content) {
-        line.createSpan({ text: ` → ${event.data.content}`, cls: "exec-meta" });
+        line.createSpan({ cls: "log-result-content", text: ` → ${event.data.content}` });
       }
     } else if (event.type === "ai" && event.data.content) {
+      const line = container.createDiv({ cls: "log-line log-ai-line" });
       line.createSpan({ cls: "log-ai", text: `🤖 ${event.data.content}` });
     } else if (event.type === "final_answer" && event.data.content) {
+      const line = container.createDiv({ cls: "log-line log-final-line" });
       line.createSpan({ cls: "log-ai", text: `✅ ${event.data.content}` });
     }
   }

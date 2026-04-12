@@ -44,11 +44,13 @@ export class AgentsView extends ItemView {
 
     // Header
     const header = container.createDiv({ cls: "agentmd-view-header" });
-    header.createSpan({ cls: "agentmd-view-icon", text: "◆" });
-    header.createSpan({ text: "Agents" });
-    header.createSpan({ cls: "agentmd-view-count", text: String(this.store.agents.length) });
-    const refreshBtn = header.createSpan({ cls: "agentmd-view-count", text: "⟳" });
-    refreshBtn.style.cursor = "pointer";
+    const left = header.createDiv({ cls: "agentmd-header-left" });
+    left.createSpan({ cls: "agentmd-view-icon", text: "◆" });
+    left.createSpan({ cls: "agentmd-header-title", text: "Agents" });
+    if (this.store.agents.length > 0) {
+      left.createSpan({ cls: "agentmd-header-badge", text: String(this.store.agents.length) });
+    }
+    const refreshBtn = header.createEl("button", { cls: "agentmd-header-action", text: "↻" });
     refreshBtn.title = "Refresh agent list";
     refreshBtn.addEventListener("click", () => this.actions.onRefreshAgents());
 
@@ -144,14 +146,5 @@ export class AgentsView extends ItemView {
       if (run.agent === name) count++;
     }
     return count;
-  }
-
-  private timeUntil(iso: string): string {
-    const diffMs = new Date(iso).getTime() - Date.now();
-    if (diffMs < 0) return "now";
-    const minutes = Math.floor(diffMs / 60_000);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h`;
   }
 }

@@ -36,21 +36,52 @@
 
 /* ---------- View headers ---------- */
 .agentmd-view-header {
-  padding: 8px 12px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   font-size: var(--font-ui-small);
   color: var(--text-normal);
   border-bottom: 1px solid var(--background-modifier-border);
 }
+.agentmd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .agentmd-view-header .agentmd-view-icon {
   color: #8b5cf6;
+  font-size: 14px;
 }
-.agentmd-view-header .agentmd-view-count {
-  color: var(--text-faint);
-  margin-left: auto;
-  font-size: var(--font-ui-smaller);
+.agentmd-header-title {
+  font-weight: var(--font-semibold);
+}
+.agentmd-header-badge {
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+.agentmd-header-action {
+  background: none;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.agentmd-header-action:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 /* ---------- Chips ---------- */
@@ -173,10 +204,17 @@
   margin-left: auto;
   color: var(--text-faint);
   cursor: pointer;
-  font-size: var(--font-ui-smaller);
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
 }
 .agentmd-live-card .live-cancel:hover {
   color: #ef4444;
+  background: rgba(239,68,68,0.1);
 }
 .agentmd-live-card .live-activity {
   font-size: var(--font-ui-smaller);
@@ -197,70 +235,159 @@
   padding-left: 14px;
 }
 
-/* ---------- Execution Detail ---------- */
+/* ---------- Execution Detail: Header ---------- */
 .agentmd-exec-detail .exec-header {
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .agentmd-exec-detail .exec-header.streaming {
-  background: rgba(59,130,246,0.08);
+  background: rgba(59,130,246,0.06);
+  border-bottom-color: rgba(59,130,246,0.15);
 }
 .agentmd-exec-detail .exec-header.success {
-  background: rgba(16,185,129,0.08);
+  background: rgba(16,185,129,0.06);
+  border-bottom-color: rgba(16,185,129,0.15);
 }
 .agentmd-exec-detail .exec-header.failed {
-  background: rgba(239,68,68,0.08);
+  background: rgba(239,68,68,0.06);
+  border-bottom-color: rgba(239,68,68,0.15);
 }
 .agentmd-exec-detail .exec-header.aborted {
-  background: rgba(245,158,11,0.08);
+  background: rgba(245,158,11,0.06);
+  border-bottom-color: rgba(245,158,11,0.15);
 }
 .agentmd-exec-detail .exec-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: var(--font-ui-medium);
   font-weight: var(--font-semibold);
   color: var(--text-normal);
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
-.agentmd-exec-detail .exec-meta {
-  font-size: var(--font-ui-smaller);
+.agentmd-exec-detail .exec-id {
   color: var(--text-faint);
+  font-weight: normal;
+  font-size: var(--font-ui-small);
 }
 .agentmd-exec-detail .exec-stats {
   display: flex;
   gap: 10px;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
-  margin-top: 5px;
 }
+
+/* Stats grid (completed mode) */
+.agentmd-exec-detail .exec-stats-grid {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.agentmd-exec-detail .exec-stat-badge {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 70px;
+}
+.agentmd-exec-detail .exec-stat-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+.agentmd-exec-detail .exec-stat-value {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+/* ---------- Execution Detail: Final Answer ---------- */
 .agentmd-exec-detail .exec-final-answer {
-  padding: 14px 16px;
-  background: rgba(16,185,129,0.06);
-  border-bottom: 1px solid rgba(16,185,129,0.15);
+  padding: 16px;
+  background: rgba(16,185,129,0.04);
+  border-bottom: 1px solid rgba(16,185,129,0.12);
 }
 .agentmd-exec-detail .exec-final-answer .final-label {
-  font-size: var(--font-ui-smaller);
+  font-size: 11px;
   color: #10b981;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+  font-weight: var(--font-semibold);
 }
 .agentmd-exec-detail .exec-final-answer .final-content {
   color: var(--text-normal);
   font-size: var(--font-ui-small);
-  line-height: 1.6;
+  line-height: 1.7;
+}
+/* Markdown rendered inside final-content */
+.agentmd-exec-detail .exec-final-answer .final-content p {
+  margin: 0 0 8px 0;
+}
+.agentmd-exec-detail .exec-final-answer .final-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- Execution Detail: Log ---------- */
+.agentmd-exec-detail .exec-log-wrapper {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.agentmd-exec-detail .exec-log-title {
+  padding: 8px 16px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: var(--font-semibold);
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+.agentmd-exec-detail .exec-log-title.clickable {
+  cursor: pointer;
+}
+.agentmd-exec-detail .exec-log-title.clickable:hover {
+  color: var(--text-muted);
 }
 .agentmd-exec-detail .exec-log {
-  padding: 10px 16px;
+  padding: 12px 16px;
   font-family: var(--font-monospace);
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
-  line-height: 1.7;
+  line-height: 1.8;
+  background: var(--background-primary-alt);
+  max-height: 400px;
+  overflow-y: auto;
 }
-.agentmd-exec-detail .exec-log .log-tool-call { color: #10b981; }
-.agentmd-exec-detail .exec-log .log-tool-result { color: #8b5cf6; }
-.agentmd-exec-detail .exec-log .log-ai { color: var(--text-normal); }
+.agentmd-exec-detail .exec-log.collapsed {
+  display: none;
+}
+.agentmd-exec-detail .exec-log .log-line {
+  padding: 1px 0;
+}
+.agentmd-exec-detail .exec-log .log-tool-call {
+  color: #10b981;
+  font-weight: var(--font-semibold);
+}
+.agentmd-exec-detail .exec-log .log-tool-result {
+  color: #8b5cf6;
+}
+.agentmd-exec-detail .exec-log .log-args,
+.agentmd-exec-detail .exec-log .log-result-content {
+  color: var(--text-faint);
+}
+.agentmd-exec-detail .exec-log .log-ai {
+  color: var(--text-normal);
+}
+.agentmd-exec-detail .exec-log .log-ai-line {
+  margin-top: 4px;
+}
+.agentmd-exec-detail .exec-log .log-final-line {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--background-modifier-border);
+}
 .agentmd-exec-detail .exec-log .log-cursor {
   color: var(--text-faint);
   animation: agentmd-blink 1s step-end infinite;
