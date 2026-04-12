@@ -105,7 +105,11 @@ export class ExecutionDetailView extends ItemView {
 
     const cancelBtn = title.createEl("button", { cls: "agentmd-btn", text: "■ Cancel" });
     cancelBtn.style.marginLeft = "auto";
-    cancelBtn.addEventListener("click", () => this.actions.onCancel(run.id));
+    cancelBtn.addEventListener("click", () => {
+      cancelBtn.setText("Cancelling…");
+      cancelBtn.disabled = true;
+      this.actions.onCancel(run.id);
+    });
 
     // Stats
     const elapsed = Math.round((Date.now() - run.startedAt) / 1000);

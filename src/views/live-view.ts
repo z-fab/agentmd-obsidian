@@ -98,6 +98,8 @@ export class LiveView extends ItemView {
     const cancel = headerEl.createSpan({ cls: "live-cancel", text: "✕" });
     cancel.addEventListener("click", (e) => {
       e.stopPropagation();
+      cancel.setText("…");
+      cancel.style.pointerEvents = "none";
       this.actions.onCancelExecution(run.id);
     });
 
