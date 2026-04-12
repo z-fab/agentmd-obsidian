@@ -128,7 +128,15 @@ export class AgentmdClient {
           }
         });
         res.on("error", (err) => onError?.(err));
-        res.on("end", () => onEnd?.());
+        res.on("end", () => {
+          // Flush any remaining buffered data — the last event may not
+          // have been followed by \n\n before the stream closed.
+          const remaining = parser.flush();
+          for (const event of remaining) {
+            onEvent(event);
+          }
+          onEnd?.();
+        });
       },
     );
 

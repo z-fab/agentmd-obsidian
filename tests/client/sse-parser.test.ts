@@ -60,4 +60,19 @@ describe("SSEParser", () => {
     expect(events[0].data.duration_ms).toBe(1234);
     expect(events[0].data.cost_usd).toBe(0.015);
   });
+
+  it("flush() processes remaining buffer when stream ends without trailing \\n\\n", () => {
+    const parser = new SSEParser();
+    // Push data WITHOUT trailing \n\n (simulates stream ending abruptly)
+    const events1 = parser.push(
+      'event: complete\nid: 999\ndata: {"status":"success"}',
+    );
+    expect(events1).toHaveLength(0); // No \n\n, so nothing yielded yet
+
+    // Flush remaining
+    const events2 = parser.flush();
+    expect(events2).toHaveLength(1);
+    expect(events2[0].type).toBe("complete");
+    expect(events2[0].data.status).toBe("success");
+  });
 });

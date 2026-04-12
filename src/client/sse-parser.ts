@@ -30,6 +30,17 @@ export class SSEParser {
     return events;
   }
 
+  /**
+   * Process any remaining data in the buffer. Call this when the stream
+   * ends to avoid losing the last event if it wasn't followed by \n\n.
+   */
+  flush(): ParsedSSEEvent[] {
+    if (!this.buffer.trim()) return [];
+    const event = this.parseBlock(this.buffer);
+    this.buffer = "";
+    return event ? [event] : [];
+  }
+
   /** Reset internal buffer (e.g. on reconnect). */
   reset(): void {
     this.buffer = "";
