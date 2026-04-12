@@ -6,6 +6,7 @@ import { VIEW_TYPE_AGENTS } from "./constants";
 /** Callback provided by the plugin to handle user actions. */
 export interface AgentsViewActions {
   onRunAgent: (name: string, withCurrentFile: boolean) => void;
+  onRefreshAgents: () => void;
   getCurrentFilePath: () => string | null;
 }
 
@@ -46,6 +47,10 @@ export class AgentsView extends ItemView {
     header.createSpan({ cls: "agentmd-view-icon", text: "◆" });
     header.createSpan({ text: "Agents" });
     header.createSpan({ cls: "agentmd-view-count", text: String(this.store.agents.length) });
+    const refreshBtn = header.createSpan({ cls: "agentmd-view-count", text: "⟳" });
+    refreshBtn.style.cursor = "pointer";
+    refreshBtn.title = "Refresh agent list";
+    refreshBtn.addEventListener("click", () => this.actions.onRefreshAgents());
 
     // Agent cards
     if (this.store.agents.length === 0) {

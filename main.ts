@@ -20,6 +20,8 @@ export default class AgentmdPlugin extends Plugin {
   private sseConnections = new Map<number, () => void>();
   /** Timer for polling background (scheduler/watch) executions */
   private bgPollTimer: ReturnType<typeof setInterval> | null = null;
+  /** Timer for periodic agent list refresh */
+  private agentRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   async onload(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -44,6 +46,7 @@ export default class AgentmdPlugin extends Plugin {
     this.registerView(VIEW_TYPE_AGENTS, (leaf) =>
       new AgentsView(leaf, this.store, {
         onRunAgent: (name, withFile) => this.runAgent(name, withFile),
+        onRefreshAgents: () => void this.refreshData(),
         getCurrentFilePath: () => this.getCurrentFilePath(),
       }),
     );
@@ -97,12 +100,18 @@ export default class AgentmdPlugin extends Plugin {
     this.bgPollTimer = setInterval(() => {
       if (this.monitor.online) void this.detectBackgroundExecutions();
     }, 5000);
+
+    // Periodic agent list refresh (picks up new/removed agent files)
+    this.agentRefreshTimer = setInterval(() => {
+      if (this.monitor.online) void this.refreshData();
+    }, 30000);
   }
 
   onunload(): void {
     this.monitor?.stop();
     this.unsubMonitor?.();
     if (this.bgPollTimer != null) clearInterval(this.bgPollTimer);
+    if (this.agentRefreshTimer != null) clearInterval(this.agentRefreshTimer);
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
   }
