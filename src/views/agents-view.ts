@@ -46,10 +46,8 @@ export class AgentsView extends ItemView {
     container.addClass("agentmd-agents-view");
 
     if (!this.actions.isOnline()) {
-      const banner = container.createDiv({ cls: "agentmd-offline-banner" });
-      banner.createSpan({ text: "⚠ Backend offline — run " });
-      banner.createEl("code", { text: "agentmd start -d" });
-      banner.createSpan({ text: " in your terminal" });
+      this.renderOffline(container);
+      return;
     }
 
     // Header
@@ -131,5 +129,15 @@ export class AgentsView extends ItemView {
     } else {
       container.createSpan({ cls: "agentmd-chip manual", text: tt });
     }
+  }
+
+  private renderOffline(container: HTMLElement): void {
+    const wrapper = container.createDiv({ cls: "agentmd-offline-state" });
+    wrapper.createDiv({ cls: "agentmd-offline-icon", text: "⚠" });
+    wrapper.createDiv({ cls: "agentmd-offline-title", text: "Backend offline" });
+    const cmd = wrapper.createDiv({ cls: "agentmd-offline-cmd" });
+    cmd.createSpan({ text: "Run " });
+    cmd.createEl("code", { text: "agentmd start -d" });
+    cmd.createSpan({ text: " to connect" });
   }
 }

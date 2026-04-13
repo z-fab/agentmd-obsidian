@@ -97,10 +97,8 @@ export class ExecutionsView extends ItemView {
     container.empty();
 
     if (!this.actions.isOnline()) {
-      const banner = container.createDiv({ cls: "agentmd-offline-banner" });
-      banner.createSpan({ text: "⚠ Backend offline — run " });
-      banner.createEl("code", { text: "agentmd start -d" });
-      banner.createSpan({ text: " in your terminal" });
+      this.renderOffline(container);
+      return;
     }
 
     // Header
@@ -232,5 +230,15 @@ export class ExecutionsView extends ItemView {
       this.periodFilter === "7d" ? now - 7 * 24 * 3600_000 :
       now - 30 * 24 * 3600_000;
     return executions.filter((e) => new Date(e.started_at).getTime() >= cutoff);
+  }
+
+  private renderOffline(container: HTMLElement): void {
+    const wrapper = container.createDiv({ cls: "agentmd-offline-state" });
+    wrapper.createDiv({ cls: "agentmd-offline-icon", text: "⚠" });
+    wrapper.createDiv({ cls: "agentmd-offline-title", text: "Backend offline" });
+    const cmd = wrapper.createDiv({ cls: "agentmd-offline-cmd" });
+    cmd.createSpan({ text: "Run " });
+    cmd.createEl("code", { text: "agentmd start -d" });
+    cmd.createSpan({ text: " to connect" });
   }
 }

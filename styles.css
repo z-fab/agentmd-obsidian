@@ -602,14 +602,35 @@
   font-size: var(--font-ui-small);
 }
 
-/* ---------- Offline banner ---------- */
-.agentmd-offline-banner {
-  padding: 8px 12px;
-  background: rgba(245,158,11,0.1);
-  border-bottom: 1px solid rgba(245,158,11,0.2);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
+/* ---------- Offline state (replaces all content when backend is down) ---------- */
+.agentmd-offline-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+  text-align: center;
+}
+.agentmd-offline-icon {
+  font-size: 32px;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+}
+.agentmd-offline-title {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.agentmd-offline-cmd {
+  font-size: var(--font-ui-small);
+  color: var(--text-faint);
+}
+.agentmd-offline-cmd code {
+  background: var(--background-secondary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-monospace);
+  color: var(--text-muted);
 }
