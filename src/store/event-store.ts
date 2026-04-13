@@ -92,15 +92,18 @@ export class EventStore {
 
     run.events.push(event);
 
-    // Update lastActivity based on event type
-    if (event.type === "tool_call" && event.data.tools?.length) {
-      run.lastActivity = `🔧 ${event.data.tools[0].name}`;
+    // Update lastActivity — handle both live format (tools/content) and
+    // replayed format from DB (message field)
+    const msg = event.data.content ?? event.data.message ?? "";
+    if (event.type === "tool_call") {
+      const name = event.data.tools?.[0]?.name ?? msg.split("(")[0] ?? "tool";
+      run.lastActivity = `🔧 ${name}`;
     } else if (event.type === "tool_result") {
       run.lastActivity = `📎 ${event.data.tool_name ?? "result"}`;
-    } else if (event.type === "ai" && event.data.content) {
-      run.lastActivity = `🤖 ${event.data.content.slice(0, 60)}`;
-    } else if (event.type === "final_answer" && event.data.content) {
-      run.finalAnswer = event.data.content;
+    } else if (event.type === "ai" && msg) {
+      run.lastActivity = `🤖 ${msg.slice(0, 60)}`;
+    } else if (event.type === "final_answer" && msg) {
+      run.finalAnswer = msg;
       run.lastActivity = `✅ Final answer`;
     }
 

@@ -74,6 +74,10 @@ export interface SSEEventData {
   event_type?: string;
   agent_name?: string;
   content?: string;
+  /** Replayed events from DB use `message` instead of structured fields. */
+  message?: string;
+  /** Replayed events include a timestamp. */
+  timestamp?: string;
   tools?: SSEToolCall[];
   tool_name?: string;
   /** Only on complete events */

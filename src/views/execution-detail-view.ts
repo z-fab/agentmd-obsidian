@@ -259,25 +259,41 @@ export class ExecutionDetailView extends ItemView {
     return events.filter((e) => e.type === "tool_call").length;
   }
 
+  /**
+   * Renders a single SSE event as a log line. Handles two formats:
+   * - Live events: structured fields (tools, tool_name, content)
+   * - Replayed events from DB: flat { event_type, message } format
+   */
   private renderLogEvent(container: HTMLElement, event: ParsedSSEEvent): void {
-    if (event.type === "tool_call" && event.data.tools?.length) {
+    const msg = event.data.content ?? event.data.message ?? "";
+
+    if (event.type === "tool_call") {
       const line = container.createDiv({ cls: "log-line" });
-      line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${event.data.tools[0].name}` });
-      if (event.data.tools[0].args) {
-        line.createSpan({ cls: "log-args", text: ` ${event.data.tools[0].args}` });
+      if (event.data.tools?.length) {
+        line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${event.data.tools[0].name}` });
+        if (event.data.tools[0].args) {
+          line.createSpan({ cls: "log-args", text: ` ${event.data.tools[0].args}` });
+        }
+      } else if (msg) {
+        line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${msg}` });
       }
     } else if (event.type === "tool_result") {
       const line = container.createDiv({ cls: "log-line" });
-      line.createSpan({ cls: "log-tool-result", text: `📎 << ${event.data.tool_name ?? "result"}` });
-      if (event.data.content) {
-        line.createSpan({ cls: "log-result-content", text: ` → ${event.data.content}` });
+      if (event.data.tool_name) {
+        line.createSpan({ cls: "log-tool-result", text: `📎 << ${event.data.tool_name}` });
+        if (msg) line.createSpan({ cls: "log-result-content", text: ` → ${msg}` });
+      } else if (msg) {
+        line.createSpan({ cls: "log-tool-result", text: `📎 << ${msg}` });
       }
-    } else if (event.type === "ai" && event.data.content) {
+    } else if (event.type === "ai" && msg) {
       const line = container.createDiv({ cls: "log-line log-ai-line" });
-      line.createSpan({ cls: "log-ai", text: `🤖 ${event.data.content}` });
-    } else if (event.type === "final_answer" && event.data.content) {
+      line.createSpan({ cls: "log-ai", text: `🤖 ${msg}` });
+    } else if (event.type === "final_answer" && msg) {
       const line = container.createDiv({ cls: "log-line log-final-line" });
-      line.createSpan({ cls: "log-ai", text: `✅ ${event.data.content}` });
+      line.createSpan({ cls: "log-ai", text: `✅ ${msg}` });
+    } else if (event.type === "meta" && msg) {
+      const line = container.createDiv({ cls: "log-line" });
+      line.createSpan({ cls: "log-args", text: `ℹ ${msg}` });
     }
   }
 }
