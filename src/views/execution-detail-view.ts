@@ -7,6 +7,7 @@ import { formatDuration, formatTokens, formatCost } from "../ui/format";
 export interface ExecDetailActions {
   onCancel: (executionId: number) => void;
   onRerun: (agentName: string, args?: string[]) => void;
+  fetchExecution: (id: number) => Promise<ExecutionSummary | null>;
 }
 
 export interface ExecDetailState {
@@ -82,19 +83,44 @@ export class ExecutionDetailView extends ItemView {
     this.renderComponent = new Component();
     this.renderComponent.load();
 
+    // If running → show streaming mode with live SSE data
     const running = this.store.running.get(this.executionId);
     if (running) {
       this.startTick();
       this.renderStreaming(container, running);
-    } else {
-      this.stopTick();
-      const completed = this.store.history.find((e) => e.id === this.executionId);
-      if (completed) {
-        this.renderCompleted(container, completed);
-      } else {
-        container.createDiv({ cls: "agentmd-empty", text: "Execution not found." });
-      }
+      return;
     }
+
+    this.stopTick();
+
+    // For completed executions → always fetch from API (source of truth)
+    if (this.executionId > 0) {
+      container.createDiv({ cls: "agentmd-empty", text: "Loading…" });
+      void this.fetchAndRender();
+    } else {
+      container.createDiv({ cls: "agentmd-empty", text: "No execution selected." });
+    }
+  }
+
+  private async fetchAndRender(): Promise<void> {
+    const exec = await this.actions.fetchExecution(this.executionId);
+    if (!exec) {
+      const container = this.contentEl;
+      container.empty();
+      container.addClass("agentmd-exec-detail");
+      container.createDiv({ cls: "agentmd-empty", text: "Execution not found." });
+      return;
+    }
+
+    const container = this.contentEl;
+    container.empty();
+    container.addClass("agentmd-exec-detail");
+
+    this.renderComponent?.unload();
+    this.renderComponent = new Component();
+    this.renderComponent.load();
+
+    this.renderCompleted(container, exec);
   }
 
   // ============================================================

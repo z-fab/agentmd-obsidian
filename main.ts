@@ -66,6 +66,13 @@ export default class AgentmdPlugin extends Plugin {
       new ExecutionDetailView(leaf, this.store, {
         onCancel: (id) => this.cancelExecution(id),
         onRerun: (name) => this.runAgent(name, false),
+        fetchExecution: async (id) => {
+          try {
+            return await this.client.getExecution(id);
+          } catch {
+            return null;
+          }
+        },
       }),
     );
     this.registerView(VIEW_TYPE_EXECUTIONS, (leaf) =>

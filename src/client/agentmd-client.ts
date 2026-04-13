@@ -76,6 +76,11 @@ export class AgentmdClient {
     );
   }
 
+  /** Fetches a single execution by ID. */
+  async getExecution(id: number): Promise<ExecutionSummary> {
+    return this.get<ExecutionSummary>(`/executions/${id}`);
+  }
+
   /** Cancels a running execution. */
   async cancelExecution(id: number): Promise<void> {
     await this.del(`/executions/${id}`);
