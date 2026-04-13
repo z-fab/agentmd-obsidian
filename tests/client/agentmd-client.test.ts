@@ -401,3 +401,78 @@ describe("AgentmdClient.listExecutions()", () => {
     expect(receivedPath).toContain("limit=10");
   });
 });
+
+describe("AgentmdClient.getAgent()", () => {
+  let socketPath: string;
+  let server: http.Server;
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("fetches agent detail by name", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.url).toBe("/agents/research");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        name: "research",
+        description: "Research topics",
+        enabled: true,
+        trigger_type: "manual",
+        model_provider: "anthropic",
+        model_name: "claude-sonnet-4-6",
+        last_run: "2026-04-11T12:00:00Z",
+        next_run: null,
+        history: "low",
+        settings: { temperature: 0.7, max_tool_calls: 50 },
+      }));
+    });
+    const client = new AgentmdClient({ socketPath });
+    const agent = await client.getAgent("research");
+    expect(agent.name).toBe("research");
+    expect(agent.settings.temperature).toBe(0.7);
+    expect(agent.last_run).toBe("2026-04-11T12:00:00Z");
+  });
+});
+
+describe("AgentmdClient.getAgentRuns()", () => {
+  let socketPath: string;
+  let server: http.Server;
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("fetches runs for a specific agent", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.url).toBe("/agents/research/runs?limit=5");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify([
+        { id: 1, agent_id: "research", status: "success", trigger: "manual", started_at: "2026-04-11T12:00:00Z" },
+      ]));
+    });
+    const client = new AgentmdClient({ socketPath });
+    const runs = await client.getAgentRuns("research", 5);
+    expect(runs).toHaveLength(1);
+    expect(runs[0].agent_id).toBe("research");
+  });
+});
+
+describe("AgentmdClient.getScheduler()", () => {
+  let socketPath: string;
+  let server: http.Server;
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("returns scheduler status with jobs", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.url).toBe("/scheduler");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        status: "running",
+        jobs: [{ agent_name: "daily", trigger_type: "schedule", next_run: "2026-04-12T13:00:00Z" }],
+      }));
+    });
+    const client = new AgentmdClient({ socketPath });
+    const sched = await client.getScheduler();
+    expect(sched.status).toBe("running");
+    expect(sched.jobs).toHaveLength(1);
+    expect(sched.jobs[0].next_run).toBe("2026-04-12T13:00:00Z");
+  });
+});

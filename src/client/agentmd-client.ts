@@ -1,5 +1,5 @@
 import * as http from "node:http";
-import type { AgentSummary, ExecutionSummary, InfoResponse, ParsedSSEEvent, RunRequest } from "../types";
+import type { AgentDetail, AgentSummary, ExecutionSummary, InfoResponse, ParsedSSEEvent, RunRequest, SchedulerStatus } from "../types";
 import { SSEParser } from "./sse-parser";
 
 export interface AgentmdClientOptions {
@@ -79,6 +79,31 @@ export class AgentmdClient {
   /** Cancels a running execution. */
   async cancelExecution(id: number): Promise<void> {
     await this.del(`/executions/${id}`);
+  }
+
+  /** Fetches a single agent's full detail (config + last_run + next_run). */
+  async getAgent(name: string): Promise<AgentDetail> {
+    return this.get<AgentDetail>(`/agents/${encodeURIComponent(name)}`);
+  }
+
+  /** Fetches execution history for a specific agent. */
+  async getAgentRuns(name: string, limit = 10): Promise<ExecutionSummary[]> {
+    return this.get<ExecutionSummary[]>(`/agents/${encodeURIComponent(name)}/runs?limit=${limit}`);
+  }
+
+  /** Fetches scheduler status and jobs. */
+  async getScheduler(): Promise<SchedulerStatus> {
+    return this.get<SchedulerStatus>("/scheduler");
+  }
+
+  /** Pauses the scheduler. */
+  async pauseScheduler(): Promise<void> {
+    await this.post("/scheduler/pause");
+  }
+
+  /** Resumes the scheduler. */
+  async resumeScheduler(): Promise<void> {
+    await this.post("/scheduler/resume");
   }
 
   /** Fetches executions, optionally filtered. */
