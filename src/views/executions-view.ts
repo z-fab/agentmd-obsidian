@@ -9,6 +9,7 @@ export interface ExecutionsViewActions {
   onRefreshExecutions: () => void;
   getExecutions: (params: { status?: string; agent?: string; limit: number; offset: number }) => Promise<ExecutionSummary[]>;
   isOnline: () => boolean;
+  onOnlineChanged: (listener: () => void) => () => void;
 }
 
 type StatusFilter = "all" | "success" | "failed" | "aborted";
@@ -32,6 +33,7 @@ export class ExecutionsView extends ItemView {
   private store: EventStore;
   private actions: ExecutionsViewActions;
   private unsub: (() => void) | null = null;
+  private unsubOnline: (() => void) | null = null;
 
   private statusFilter: StatusFilter = "all";
   private agentFilter: string = "all";
@@ -53,11 +55,13 @@ export class ExecutionsView extends ItemView {
 
   async onOpen(): Promise<void> {
     this.unsub = this.store.onHistoryChanged(() => this.render());
+    this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
     await this.loadExecutions();
   }
 
   async onClose(): Promise<void> {
     this.unsub?.();
+    this.unsubOnline?.();
   }
 
   private async loadExecutions(): Promise<void> {

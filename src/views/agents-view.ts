@@ -10,6 +10,7 @@ export interface AgentsViewActions {
   getCurrentFilePath: () => string | null;
   onOpenAgentDetail: (name: string) => void;
   isOnline: () => boolean;
+  onOnlineChanged: (listener: () => void) => () => void;
 }
 
 export class AgentsView extends ItemView {
@@ -17,6 +18,7 @@ export class AgentsView extends ItemView {
   private actions: AgentsViewActions;
   private unsubAgents: (() => void) | null = null;
   private unsubRunning: (() => void) | null = null;
+  private unsubOnline: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: AgentsViewActions) {
     super(leaf);
@@ -32,11 +34,13 @@ export class AgentsView extends ItemView {
     this.render();
     this.unsubAgents = this.store.onAgentsChanged(() => this.render());
     this.unsubRunning = this.store.onRunningChanged(() => this.render());
+    this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
   }
 
   async onClose(): Promise<void> {
     this.unsubAgents?.();
     this.unsubRunning?.();
+    this.unsubOnline?.();
   }
 
   private render(): void {

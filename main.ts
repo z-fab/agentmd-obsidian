@@ -53,6 +53,7 @@ export default class AgentmdPlugin extends Plugin {
         getCurrentFilePath: () => this.getCurrentFilePath(),
         onOpenAgentDetail: (name) => this.openAgentDetail(name),
         isOnline: () => this.monitor.online,
+        onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
       }),
     );
     this.registerView(VIEW_TYPE_LIVE, (leaf) =>
@@ -60,6 +61,7 @@ export default class AgentmdPlugin extends Plugin {
         onOpenExecution: (id) => this.openExecutionDetail(id),
         onCancelExecution: (id) => this.cancelExecution(id),
         isOnline: () => this.monitor.online,
+        onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
       }),
     );
     this.registerView(VIEW_TYPE_EXEC_DETAIL, (leaf) =>
@@ -82,6 +84,7 @@ export default class AgentmdPlugin extends Plugin {
         onRefreshExecutions: () => void this.refreshData(),
         getExecutions: (params) => this.client.listExecutions(params),
         isOnline: () => this.monitor.online,
+        onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
       }),
     );
     this.registerView(VIEW_TYPE_AGENT_DETAIL, (leaf) =>

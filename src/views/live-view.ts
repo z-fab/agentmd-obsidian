@@ -7,12 +7,14 @@ export interface LiveViewActions {
   onOpenExecution: (executionId: number) => void;
   onCancelExecution: (executionId: number) => void;
   isOnline: () => boolean;
+  onOnlineChanged: (listener: () => void) => () => void;
 }
 
 export class LiveView extends ItemView {
   private store: EventStore;
   private actions: LiveViewActions;
   private unsub: (() => void) | null = null;
+  private unsubOnline: (() => void) | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: LiveViewActions) {
@@ -28,10 +30,12 @@ export class LiveView extends ItemView {
   async onOpen(): Promise<void> {
     this.render();
     this.unsub = this.store.onRunningChanged(() => this.render());
+    this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
   }
 
   async onClose(): Promise<void> {
     this.unsub?.();
+    this.unsubOnline?.();
     this.stopTick();
   }
 
