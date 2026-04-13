@@ -58,12 +58,15 @@ export class LiveView extends ItemView {
       banner.createSpan({ text: " in your terminal" });
     }
 
-    // Header
+    // Header — same pattern as Agents/Executions
     const header = container.createDiv({ cls: "agentmd-view-header" });
-    header.createSpan({ cls: "agentmd-view-icon", text: "●" });
-    header.createSpan({ text: "Live" });
+    const left = header.createDiv({ cls: "agentmd-header-left" });
+    left.createSpan({ cls: "agentmd-view-icon", text: "◆" });
+    left.createSpan({ cls: "agentmd-header-title", text: "Live" });
     const count = this.store.running.size;
-    header.createSpan({ cls: "agentmd-view-count", text: count > 0 ? `${count} active` : "" });
+    if (count > 0) {
+      left.createSpan({ cls: "agentmd-header-badge", text: String(count) });
+    }
 
     if (count === 0) {
       this.stopTick();

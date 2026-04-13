@@ -14,6 +14,20 @@ export interface ExecutionsViewActions {
 type StatusFilter = "all" | "success" | "failed" | "aborted";
 type PeriodFilter = "today" | "7d" | "30d" | "all";
 
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "success", label: "✓" },
+  { value: "failed", label: "✗" },
+  { value: "aborted", label: "⚠" },
+];
+
+const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "7d", label: "7d" },
+  { value: "30d", label: "30d" },
+  { value: "all", label: "All" },
+];
+
 export class ExecutionsView extends ItemView {
   private store: EventStore;
   private actions: ExecutionsViewActions;
@@ -24,7 +38,7 @@ export class ExecutionsView extends ItemView {
   private periodFilter: PeriodFilter = "today";
   private executions: ExecutionSummary[] = [];
   private offset = 0;
-  private readonly pageSize = 20;
+  private readonly pageSize = 30;
   private loading = false;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: ExecutionsViewActions) {
@@ -96,44 +110,53 @@ export class ExecutionsView extends ItemView {
     const refreshBtn = header.createEl("button", { cls: "agentmd-header-action", text: "↻" });
     refreshBtn.addEventListener("click", () => this.applyFilter());
 
-    // Filter row
-    const filters = container.createDiv({ cls: "agentmd-filter-row" });
+    // Filter area
+    const filterArea = container.createDiv({ cls: "agentmd-filter-area" });
 
-    // Status filter
-    const statusBtn = filters.createEl("button", {
-      cls: `agentmd-filter-chip ${this.statusFilter !== "all" ? "active" : ""}`,
-      text: this.statusFilter === "all" ? "All status" : this.statusFilter,
-    });
-    statusBtn.addEventListener("click", () => {
-      const order: StatusFilter[] = ["all", "success", "failed", "aborted"];
-      const idx = order.indexOf(this.statusFilter);
-      this.statusFilter = order[(idx + 1) % order.length];
+    // Status: segmented control
+    const statusRow = filterArea.createDiv({ cls: "agentmd-filter-group" });
+    statusRow.createSpan({ cls: "agentmd-filter-label", text: "Status" });
+    const statusSeg = statusRow.createDiv({ cls: "agentmd-segmented" });
+    for (const opt of STATUS_OPTIONS) {
+      const btn = statusSeg.createEl("button", {
+        cls: `agentmd-seg-btn ${this.statusFilter === opt.value ? "active" : ""}`,
+        text: opt.label,
+      });
+      btn.addEventListener("click", () => {
+        this.statusFilter = opt.value;
+        void this.applyFilter();
+      });
+    }
+
+    // Agent: dropdown-style button
+    const agentRow = filterArea.createDiv({ cls: "agentmd-filter-group" });
+    agentRow.createSpan({ cls: "agentmd-filter-label", text: "Agent" });
+    const agentSelect = agentRow.createEl("select", { cls: "agentmd-filter-select" });
+    const allOpt = agentSelect.createEl("option", { text: "All agents", value: "all" });
+    if (this.agentFilter === "all") allOpt.selected = true;
+    for (const agent of this.store.agents) {
+      const opt = agentSelect.createEl("option", { text: agent.name, value: agent.name });
+      if (this.agentFilter === agent.name) opt.selected = true;
+    }
+    agentSelect.addEventListener("change", () => {
+      this.agentFilter = agentSelect.value;
       void this.applyFilter();
     });
 
-    // Agent filter
-    const agentBtn = filters.createEl("button", {
-      cls: `agentmd-filter-chip ${this.agentFilter !== "all" ? "active" : ""}`,
-      text: this.agentFilter === "all" ? "All agents" : this.agentFilter,
-    });
-    agentBtn.addEventListener("click", () => {
-      const agents = ["all", ...this.store.agents.map((a) => a.name)];
-      const idx = agents.indexOf(this.agentFilter);
-      this.agentFilter = agents[(idx + 1) % agents.length];
-      void this.applyFilter();
-    });
-
-    // Period filter
-    const periodBtn = filters.createEl("button", {
-      cls: `agentmd-filter-chip ${this.periodFilter !== "all" ? "active" : ""}`,
-      text: this.periodFilter === "all" ? "All time" : this.periodFilter === "today" ? "Today" : this.periodFilter,
-    });
-    periodBtn.addEventListener("click", () => {
-      const order: PeriodFilter[] = ["today", "7d", "30d", "all"];
-      const idx = order.indexOf(this.periodFilter);
-      this.periodFilter = order[(idx + 1) % order.length];
-      void this.applyFilter();
-    });
+    // Period: segmented control
+    const periodRow = filterArea.createDiv({ cls: "agentmd-filter-group" });
+    periodRow.createSpan({ cls: "agentmd-filter-label", text: "Period" });
+    const periodSeg = periodRow.createDiv({ cls: "agentmd-segmented" });
+    for (const opt of PERIOD_OPTIONS) {
+      const btn = periodSeg.createEl("button", {
+        cls: `agentmd-seg-btn ${this.periodFilter === opt.value ? "active" : ""}`,
+        text: opt.label,
+      });
+      btn.addEventListener("click", () => {
+        this.periodFilter = opt.value;
+        void this.applyFilter();
+      });
+    }
 
     // Loading
     if (this.loading) {
@@ -150,14 +173,15 @@ export class ExecutionsView extends ItemView {
     }
 
     // Execution rows
+    const list = container.createDiv({ cls: "agentmd-exec-list" });
     for (const exec of filtered) {
-      this.renderRow(container, exec);
+      this.renderRow(list, exec);
     }
 
-    // Load more button
+    // Load more
     if (this.executions.length >= this.offset + this.pageSize) {
       const loadMore = container.createDiv({ cls: "agentmd-load-more" });
-      loadMore.createEl("button", { cls: "agentmd-btn", text: "Load 20 more" }).addEventListener("click", () => {
+      loadMore.createEl("button", { cls: "agentmd-btn", text: "Load more" }).addEventListener("click", () => {
         this.offset += this.pageSize;
         void this.loadExecutions();
       });
@@ -165,29 +189,35 @@ export class ExecutionsView extends ItemView {
   }
 
   private renderRow(container: HTMLElement, exec: ExecutionSummary): void {
-    const row = container.createDiv({ cls: "agentmd-exec-row" });
+    const isSuccess = exec.status === "success";
+    const isFailed = exec.status === "failed" || exec.status === "error";
+    const isRunning = exec.status === "running";
+    const statusIcon = isSuccess ? "✓" : isFailed ? "✗" : isRunning ? "●" : "⚠";
+    const statusCls = isSuccess ? "agentmd-status-success" : isFailed ? "agentmd-status-failed" : isRunning ? "agentmd-status-running" : "agentmd-status-aborted";
+
+    const row = container.createDiv({ cls: `agentmd-exec-row ${isFailed || (!isSuccess && !isRunning) ? "has-error" : ""}` });
     row.addEventListener("click", () => this.actions.onOpenExecution(exec.id));
 
-    // Row 1: status icon + agent + #id + error tag + time
+    // Line 1: icon + agent + #id + time
     const line1 = row.createDiv({ cls: "exec-row-line1" });
-    const statusIcon = exec.status === "success" ? "✓" : exec.status === "failed" || exec.status === "error" ? "✗" : exec.status === "running" ? "●" : "⚠";
-    const statusCls = exec.status === "success" ? "agentmd-status-success" : exec.status === "failed" || exec.status === "error" ? "agentmd-status-failed" : exec.status === "running" ? "agentmd-status-running" : "agentmd-status-aborted";
     line1.createSpan({ cls: statusCls, text: statusIcon });
     line1.createSpan({ cls: "exec-row-agent", text: ` ${exec.agent_id}` });
     line1.createSpan({ cls: "exec-row-id", text: `#${exec.id}` });
-    if (exec.error) {
-      line1.createSpan({ cls: "exec-row-error", text: exec.error });
+    // Trigger icon (if not manual)
+    if (exec.trigger && exec.trigger !== "manual") {
+      line1.createSpan({ cls: "exec-row-trigger-icon", text: exec.trigger === "scheduler" || exec.trigger === "schedule" ? " ⏱" : " 👁" });
     }
     line1.createSpan({ cls: "exec-row-time", text: formatRelativeTime(exec.started_at) });
 
-    // Row 2: duration + tokens + cost
+    // Line 2: duration · tokens · cost (+ error truncated if any)
     const line2 = row.createDiv({ cls: "exec-row-line2" });
-    if (exec.trigger && exec.trigger !== "manual") {
-      line2.createSpan({ cls: "exec-row-trigger", text: exec.trigger === "scheduler" ? "⏱" : "👁" });
-    }
     line2.createSpan({ text: formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined) });
     line2.createSpan({ text: formatTokens(exec.total_tokens) });
     line2.createSpan({ text: formatCost(exec.cost_usd) });
+    if (exec.error) {
+      const errorText = exec.error.length > 30 ? exec.error.slice(0, 30) + "…" : exec.error;
+      line2.createSpan({ cls: "exec-row-error-inline", text: errorText });
+    }
   }
 
   private filterByPeriod(executions: ExecutionSummary[]): ExecutionSummary[] {
