@@ -73,6 +73,7 @@ export default class AgentmdPlugin extends Plugin {
             return null;
           }
         },
+        fetchExecutionMessages: (id) => this.client.getExecutionMessages(id),
       }),
     );
     this.registerView(VIEW_TYPE_EXECUTIONS, (leaf) =>

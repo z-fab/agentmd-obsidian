@@ -1,6 +1,6 @@
 import { Component, ItemView, MarkdownRenderer, WorkspaceLeaf } from "obsidian";
 import type { EventStore, RunningExecution, CompletedSnapshot } from "../store/event-store";
-import type { ExecutionSummary, ParsedSSEEvent } from "../types";
+import type { ExecutionSummary, LogEntry, ParsedSSEEvent } from "../types";
 import { VIEW_TYPE_EXEC_DETAIL } from "./constants";
 import { formatDuration, formatTokens, formatCost } from "../ui/format";
 
@@ -8,6 +8,7 @@ export interface ExecDetailActions {
   onCancel: (executionId: number) => void;
   onRerun: (agentName: string, args?: string[]) => void;
   fetchExecution: (id: number) => Promise<ExecutionSummary | null>;
+  fetchExecutionMessages: (id: number) => Promise<LogEntry[]>;
 }
 
 export interface ExecDetailState {
@@ -103,7 +104,11 @@ export class ExecutionDetailView extends ItemView {
   }
 
   private async fetchAndRender(): Promise<void> {
-    const exec = await this.actions.fetchExecution(this.executionId);
+    const [exec, messages] = await Promise.all([
+      this.actions.fetchExecution(this.executionId),
+      this.actions.fetchExecutionMessages(this.executionId).catch(() => [] as LogEntry[]),
+    ]);
+
     if (!exec) {
       const container = this.contentEl;
       container.empty();
@@ -120,7 +125,7 @@ export class ExecutionDetailView extends ItemView {
     this.renderComponent = new Component();
     this.renderComponent.load();
 
-    this.renderCompleted(container, exec);
+    this.renderCompleted(container, exec, messages);
   }
 
   // ============================================================
@@ -172,13 +177,27 @@ export class ExecutionDetailView extends ItemView {
   //  COMPLETED MODE
   // ============================================================
 
-  private renderCompleted(container: HTMLElement, exec: ExecutionSummary): void {
+  private renderCompleted(container: HTMLElement, exec: ExecutionSummary, apiMessages?: LogEntry[]): void {
     const isSuccess = exec.status === "success";
     const isFailed = exec.status === "failed" || exec.status === "error";
     const statusClass = isSuccess ? "success" : isFailed ? "failed" : "aborted";
     const statusIcon = isSuccess ? "✓" : isFailed ? "✗" : "⚠";
     const statusLabel = isSuccess ? "success" : isFailed ? "failed" : exec.status;
     const snapshot = this.store.getCompletedSnapshot(exec.id);
+
+    // Convert API messages to ParsedSSEEvent format (if no live snapshot)
+    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? (apiMessages ?? []).map((m) => ({
+      type: m.event_type,
+      id: String(m.id),
+      data: { event_type: m.event_type, message: m.message },
+    }));
+
+    // Extract final answer from snapshot or from API messages
+    const finalAnswerFromLog = logEvents
+      .filter((e) => e.type === "final_answer")
+      .map((e) => e.data.content ?? e.data.message ?? "")
+      .join("\n");
+    const finalAnswer = snapshot?.finalAnswer ?? (finalAnswerFromLog || null);
 
     const header = container.createDiv({ cls: `exec-header ${statusClass}` });
 
@@ -232,13 +251,13 @@ export class ExecutionDetailView extends ItemView {
     }
 
     // Final answer — rendered as markdown
-    if (snapshot?.finalAnswer) {
+    if (finalAnswer) {
       const answerSection = container.createDiv({ cls: "exec-final-answer" });
       answerSection.createDiv({ cls: "final-label", text: `${statusIcon} Final Answer` });
       const answerContent = answerSection.createDiv({ cls: "final-content" });
       MarkdownRenderer.render(
         this.app,
-        snapshot.finalAnswer,
+        finalAnswer,
         answerContent,
         "",
         this.renderComponent!,
@@ -246,13 +265,14 @@ export class ExecutionDetailView extends ItemView {
     }
 
     // Execution log (collapsible)
-    if (snapshot?.events.length) {
+    const toolCalls = this.countToolCalls(logEvents);
+    if (logEvents.length > 0) {
       const logWrapper = container.createDiv({ cls: "exec-log-wrapper" });
       const logHeader = logWrapper.createDiv({ cls: "exec-log-title clickable" });
-      logHeader.createSpan({ text: `▶ Execution Log · ${this.countToolCalls(snapshot.events)} tool calls` });
+      logHeader.createSpan({ text: `▶ Execution Log · ${toolCalls} tool calls` });
 
       const log = logWrapper.createDiv({ cls: "exec-log collapsed" });
-      for (const event of snapshot.events) {
+      for (const event of logEvents) {
         this.renderLogEvent(log, event);
       }
 
@@ -261,13 +281,8 @@ export class ExecutionDetailView extends ItemView {
         log.toggleClass("collapsed", !isCollapsed);
         logHeader.empty();
         logHeader.createSpan({
-          text: `${isCollapsed ? "▼" : "▶"} Execution Log · ${this.countToolCalls(snapshot.events)} tool calls`,
+          text: `${isCollapsed ? "▼" : "▶"} Execution Log · ${toolCalls} tool calls`,
         });
-      });
-    } else {
-      container.createDiv({
-        cls: "agentmd-empty",
-        text: "Execution log not available (execution was not observed live).",
       });
     }
   }

@@ -97,6 +97,17 @@ export interface ParsedSSEEvent {
   data: SSEEventData;
 }
 
+// ---------- Log entries (from GET /executions/{id}/messages) ----------
+
+export interface LogEntry {
+  id: number;
+  execution_id: number;
+  timestamp: string;
+  event_type: string;
+  message: string;
+  metadata: string | null;
+}
+
 // ---------- Scheduler ----------
 
 export interface SchedulerJob {

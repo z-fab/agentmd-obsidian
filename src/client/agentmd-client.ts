@@ -1,5 +1,5 @@
 import * as http from "node:http";
-import type { AgentDetail, AgentSummary, ExecutionSummary, InfoResponse, ParsedSSEEvent, RunRequest, SchedulerStatus } from "../types";
+import type { AgentDetail, AgentSummary, ExecutionSummary, InfoResponse, LogEntry, ParsedSSEEvent, RunRequest, SchedulerStatus } from "../types";
 import { SSEParser } from "./sse-parser";
 
 export interface AgentmdClientOptions {
@@ -79,6 +79,11 @@ export class AgentmdClient {
   /** Fetches a single execution by ID. */
   async getExecution(id: number): Promise<ExecutionSummary> {
     return this.get<ExecutionSummary>(`/executions/${id}`);
+  }
+
+  /** Fetches the full message log for an execution. */
+  async getExecutionMessages(id: number): Promise<LogEntry[]> {
+    return this.get<LogEntry[]>(`/executions/${id}/messages`);
   }
 
   /** Cancels a running execution. */
