@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import type { EventStore, RunningExecution } from "../store/event-store";
+import type { ExecutionSummary } from "../types";
 import { VIEW_TYPE_LIVE } from "./constants";
 import { formatDuration, formatTokens, formatCost } from "../ui/format";
 
@@ -8,18 +8,18 @@ export interface LiveViewActions {
   onCancelExecution: (executionId: number) => void;
   isOnline: () => boolean;
   onOnlineChanged: (listener: () => void) => () => void;
+  /** Fetch currently running executions directly from the API. */
+  fetchRunning: () => Promise<ExecutionSummary[]>;
 }
 
 export class LiveView extends ItemView {
-  private store: EventStore;
   private actions: LiveViewActions;
-  private unsub: (() => void) | null = null;
   private unsubOnline: (() => void) | null = null;
-  private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private executions: ExecutionSummary[] = [];
 
-  constructor(leaf: WorkspaceLeaf, store: EventStore, actions: LiveViewActions) {
+  constructor(leaf: WorkspaceLeaf, actions: LiveViewActions) {
     super(leaf);
-    this.store = store;
     this.actions = actions;
   }
 
@@ -28,27 +28,37 @@ export class LiveView extends ItemView {
   getIcon(): string { return "activity"; }
 
   async onOpen(): Promise<void> {
-    this.render();
-    this.unsub = this.store.onRunningChanged(() => this.render());
-    this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
+    this.unsubOnline = this.actions.onOnlineChanged(() => {
+      void this.poll();
+    });
+    // Start polling every 2 seconds
+    this.pollTimer = setInterval(() => {
+      if (this.actions.isOnline()) void this.poll();
+    }, 2000);
+    // Initial poll
+    void this.poll();
   }
 
   async onClose(): Promise<void> {
-    this.unsub?.();
     this.unsubOnline?.();
-    this.stopTick();
-  }
-
-  private startTick(): void {
-    if (this.tickTimer) return;
-    this.tickTimer = setInterval(() => this.render(), 1000);
-  }
-
-  private stopTick(): void {
-    if (this.tickTimer) {
-      clearInterval(this.tickTimer);
-      this.tickTimer = null;
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
     }
+  }
+
+  private async poll(): Promise<void> {
+    if (!this.actions.isOnline()) {
+      this.executions = [];
+      this.render();
+      return;
+    }
+    try {
+      this.executions = await this.actions.fetchRunning();
+    } catch {
+      // offline or error — keep last known state
+    }
+    this.render();
   }
 
   private render(): void {
@@ -62,53 +72,46 @@ export class LiveView extends ItemView {
       banner.createSpan({ text: " in your terminal" });
     }
 
-    // Header — same pattern as Agents/Executions
+    // Header
     const header = container.createDiv({ cls: "agentmd-view-header" });
     const left = header.createDiv({ cls: "agentmd-header-left" });
     left.createSpan({ cls: "agentmd-view-icon", text: "◆" });
     left.createSpan({ cls: "agentmd-header-title", text: "Live" });
-    const count = this.store.running.size;
-    if (count > 0) {
-      left.createSpan({ cls: "agentmd-header-badge", text: String(count) });
+    if (this.executions.length > 0) {
+      left.createSpan({ cls: "agentmd-header-badge", text: String(this.executions.length) });
     }
 
-    if (count === 0) {
-      this.stopTick();
+    if (this.executions.length === 0) {
       container.createDiv({
         cls: "agentmd-empty",
-        text: "No running executions. Click ▶ on an agent to start one.",
+        text: this.actions.isOnline()
+          ? "No running executions. Click ▶ on an agent to start one."
+          : "",
       });
       return;
     }
 
-    // Timer ticks every 1s to keep elapsed time fresh
-    this.startTick();
-
-    // Cards sorted by most recent first
-    const runs = [...this.store.running.values()].sort(
-      (a, b) => b.startedAt - a.startedAt,
-    );
-
-    for (const run of runs) {
-      this.renderCard(container, run);
+    for (const exec of this.executions) {
+      this.renderCard(container, exec);
     }
   }
 
-  private renderCard(container: HTMLElement, run: RunningExecution): void {
+  private renderCard(container: HTMLElement, exec: ExecutionSummary): void {
     const card = container.createDiv({ cls: "agentmd-live-card" });
-    card.addEventListener("click", () => this.actions.onOpenExecution(run.id));
+    card.addEventListener("click", () => this.actions.onOpenExecution(exec.id));
 
     // Row 1: dot + name + #id + trigger + cancel
     const headerEl = card.createDiv({ cls: "live-header" });
     headerEl.createSpan({ cls: "live-dot", text: "●" });
-    headerEl.createSpan({ cls: "live-name", text: run.agent });
-    headerEl.createSpan({ cls: "live-id", text: `#${run.id}` });
+    headerEl.createSpan({ cls: "live-name", text: exec.agent_id });
+    headerEl.createSpan({ cls: "live-id", text: `#${exec.id}` });
 
+    const trigger = exec.trigger ?? "manual";
     const triggerCls =
-      run.triggerSource === "scheduler" ? "agentmd-trigger-scheduler" :
-      run.triggerSource === "watch" ? "agentmd-trigger-watch" :
+      trigger === "scheduler" || trigger === "schedule" ? "agentmd-trigger-scheduler" :
+      trigger === "watch" ? "agentmd-trigger-watch" :
       "agentmd-trigger-manual";
-    headerEl.createSpan({ cls: `live-trigger ${triggerCls}`, text: `· ${run.triggerSource}` });
+    headerEl.createSpan({ cls: `live-trigger ${triggerCls}`, text: `· ${trigger}` });
 
     const cancel = headerEl.createSpan({ cls: "live-cancel", text: "■" });
     cancel.title = "Stop execution";
@@ -116,19 +119,20 @@ export class LiveView extends ItemView {
       e.stopPropagation();
       cancel.setText("…");
       cancel.style.pointerEvents = "none";
-      this.actions.onCancelExecution(run.id);
+      this.actions.onCancelExecution(exec.id);
     });
 
-    // Row 2: last activity
-    if (run.lastActivity) {
-      card.createDiv({ cls: "live-activity", text: run.lastActivity });
-    }
-
-    // Row 3: stats
-    const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
+    // Row 2: elapsed time + tokens + cost (from API data)
+    const elapsed = exec.started_at
+      ? Math.round((Date.now() - new Date(exec.started_at).getTime()) / 1000)
+      : 0;
     const stats = card.createDiv({ cls: "live-stats" });
     stats.createSpan({ text: formatDuration(elapsed) });
-    if (run.tokensTotal > 0) stats.createSpan({ text: formatTokens(run.tokensTotal) });
-    if (run.costUsd > 0) stats.createSpan({ text: formatCost(run.costUsd) });
+    if (exec.total_tokens != null && exec.total_tokens > 0) {
+      stats.createSpan({ text: formatTokens(exec.total_tokens) });
+    }
+    if (exec.cost_usd != null && exec.cost_usd > 0) {
+      stats.createSpan({ text: formatCost(exec.cost_usd) });
+    }
   }
 }

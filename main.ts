@@ -57,11 +57,12 @@ export default class AgentmdPlugin extends Plugin {
       }),
     );
     this.registerView(VIEW_TYPE_LIVE, (leaf) =>
-      new LiveView(leaf, this.store, {
+      new LiveView(leaf, {
         onOpenExecution: (id) => this.openExecutionDetail(id),
         onCancelExecution: (id) => this.cancelExecution(id),
         isOnline: () => this.monitor.online,
         onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
+        fetchRunning: () => this.client.listExecutions({ status: "running" }),
       }),
     );
     this.registerView(VIEW_TYPE_EXEC_DETAIL, (leaf) =>

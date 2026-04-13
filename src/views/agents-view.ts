@@ -17,7 +17,6 @@ export class AgentsView extends ItemView {
   private store: EventStore;
   private actions: AgentsViewActions;
   private unsubAgents: (() => void) | null = null;
-  private unsubRunning: (() => void) | null = null;
   private unsubOnline: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: AgentsViewActions) {
@@ -33,13 +32,11 @@ export class AgentsView extends ItemView {
   async onOpen(): Promise<void> {
     this.render();
     this.unsubAgents = this.store.onAgentsChanged(() => this.render());
-    this.unsubRunning = this.store.onRunningChanged(() => this.render());
     this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
   }
 
   async onClose(): Promise<void> {
     this.unsubAgents?.();
-    this.unsubRunning?.();
     this.unsubOnline?.();
   }
 
@@ -79,14 +76,13 @@ export class AgentsView extends ItemView {
   }
 
   private renderCard(container: HTMLElement, agent: AgentSummary): void {
-    const isRunning = this.isAgentRunning(agent.name);
-    const card = container.createDiv({ cls: `agentmd-agent-card ${isRunning ? "is-running" : ""}` });
+    const card = container.createDiv({ cls: "agentmd-agent-card" });
     card.addEventListener("click", () => this.actions.onOpenAgentDetail(agent.name));
 
-    // Row 1: name + trigger chip + menu
+    // Row 1: name + trigger chip
     const headerEl = card.createDiv({ cls: "agent-header" });
     headerEl.createSpan({ cls: "agent-name", text: agent.name });
-    this.renderTriggerChip(headerEl, agent, isRunning);
+    this.renderTriggerChip(headerEl, agent);
 
     // Row 2: description
     if (agent.description) {
@@ -102,16 +98,13 @@ export class AgentsView extends ItemView {
 
     const actions = footer.createDiv({ cls: "agent-actions" });
 
-    // Run button (no args)
     const runBtn = actions.createEl("button", { cls: "agentmd-btn", text: "▶" });
     runBtn.title = "Run without arguments";
-    if (isRunning) runBtn.disabled = true;
     runBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.actions.onRunAgent(agent.name, false);
     });
 
-    // Run with current file button
     const currentFile = this.actions.getCurrentFilePath();
     const runFileBtn = actions.createEl("button", { cls: "agentmd-btn primary", text: "▶ 📄" });
     if (currentFile) {
@@ -121,20 +114,13 @@ export class AgentsView extends ItemView {
       runFileBtn.title = "Open a note first";
       runFileBtn.disabled = true;
     }
-    if (isRunning) runFileBtn.disabled = true;
     runFileBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.actions.onRunAgent(agent.name, true);
     });
   }
 
-  private renderTriggerChip(container: HTMLElement, agent: AgentSummary, isRunning: boolean): void {
-    if (isRunning) {
-      const runCount = this.runningCountForAgent(agent.name);
-      const text = runCount > 1 ? `● Running · ${runCount} active` : "● Running";
-      container.createSpan({ cls: "agentmd-chip running", text });
-      return;
-    }
+  private renderTriggerChip(container: HTMLElement, agent: AgentSummary): void {
     const tt = agent.trigger_type ?? "manual";
     if (tt === "manual" || tt === "none") {
       container.createSpan({ cls: "agentmd-chip manual", text: "Manual" });
@@ -145,20 +131,5 @@ export class AgentsView extends ItemView {
     } else {
       container.createSpan({ cls: "agentmd-chip manual", text: tt });
     }
-  }
-
-  private isAgentRunning(name: string): boolean {
-    for (const run of this.store.running.values()) {
-      if (run.agent === name) return true;
-    }
-    return false;
-  }
-
-  private runningCountForAgent(name: string): number {
-    let count = 0;
-    for (const run of this.store.running.values()) {
-      if (run.agent === name) count++;
-    }
-    return count;
   }
 }
