@@ -235,72 +235,84 @@
   padding-left: 14px;
 }
 
-/* ---------- Execution Detail: Header ---------- */
-.agentmd-exec-detail .exec-header {
+/* ---------- Shared header pattern (Execution Detail + Agent Detail) ---------- */
+.exec-header {
   padding: 14px 16px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.agentmd-exec-detail .exec-header.streaming {
+.exec-header.streaming {
   background: rgba(59,130,246,0.06);
   border-bottom-color: rgba(59,130,246,0.15);
 }
-.agentmd-exec-detail .exec-header.success {
+.exec-header.success {
   background: rgba(16,185,129,0.06);
   border-bottom-color: rgba(16,185,129,0.15);
 }
-.agentmd-exec-detail .exec-header.failed {
+.exec-header.failed {
   background: rgba(239,68,68,0.06);
   border-bottom-color: rgba(239,68,68,0.15);
 }
-.agentmd-exec-detail .exec-header.aborted {
+.exec-header.aborted {
   background: rgba(245,158,11,0.06);
   border-bottom-color: rgba(245,158,11,0.15);
 }
-.agentmd-exec-detail .exec-title {
+.exec-title {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: var(--font-ui-medium);
   font-weight: var(--font-semibold);
   color: var(--text-normal);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.agentmd-exec-detail .exec-id {
+.exec-name {
+  /* inherit weight from parent */
+}
+.exec-id {
   color: var(--text-faint);
   font-weight: normal;
   font-size: var(--font-ui-small);
 }
-.agentmd-exec-detail .exec-stats {
+
+/* Inline meta line — used for trigger·status·duration and token stats */
+.exec-meta-line {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 4px;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
+  margin-top: 4px;
+  flex-wrap: wrap;
 }
-
-/* Stats grid (completed mode) */
-.agentmd-exec-detail .exec-stats-grid {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-}
-.agentmd-exec-detail .exec-stat-badge {
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  min-width: 70px;
-}
-.agentmd-exec-detail .exec-stat-label {
-  font-size: 10px;
+.exec-meta-sep {
   color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-bottom: 2px;
+  margin: 0 2px;
 }
-.agentmd-exec-detail .exec-stat-value {
-  font-size: var(--font-ui-small);
+.exec-meta-item {
+  white-space: nowrap;
+}
+.exec-meta-highlight {
   font-weight: var(--font-semibold);
   color: var(--text-normal);
+}
+.exec-stats-line {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+}
+.exec-error-line {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(239,68,68,0.08);
+  border-radius: 4px;
+  color: #ef4444;
+  font-size: var(--font-ui-smaller);
+}
+
+/* Agent Detail stats section (inline) */
+.agent-detail-stats-section {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
 }
 
 /* ---------- Execution Detail: Final Answer ---------- */
@@ -479,25 +491,13 @@
 }
 
 /* ---------- Agent Detail View ---------- */
+/* ---------- Agent Detail View ---------- */
 .agentmd-agent-detail .agent-detail-header {
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.agent-detail-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
 .agent-detail-name {
-  font-size: var(--font-ui-large);
-  font-weight: var(--font-semibold);
-  color: var(--text-normal);
-}
-.agent-detail-chips {
-  display: flex;
-  gap: 5px;
+  font-size: var(--font-ui-large) !important;
 }
 .agent-detail-desc {
   color: var(--text-muted);
@@ -510,12 +510,7 @@
   gap: 6px;
   flex-wrap: wrap;
 }
-.agent-detail-stats {
-  display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--background-modifier-border);
-}
+/* agent-detail-stats removed — now uses shared exec-meta-line pattern */
 .agent-detail-section {
   border-bottom: 1px solid var(--background-modifier-border);
 }

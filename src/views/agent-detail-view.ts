@@ -82,30 +82,34 @@ export class AgentDetailView extends ItemView {
     const d = this.detail!;
     const header = container.createDiv({ cls: "agent-detail-header" });
 
-    const titleRow = header.createDiv({ cls: "agent-detail-title-row" });
-    titleRow.createSpan({ cls: "agent-detail-name", text: d.name });
+    // Row 1: name                           (no action button in title — buttons below)
+    const titleRow = header.createDiv({ cls: "exec-title" });
+    titleRow.createSpan({ cls: "exec-name agent-detail-name", text: d.name });
 
-    // Chips
-    const chips = titleRow.createDiv({ cls: "agent-detail-chips" });
+    // Row 2: trigger · model (same meta-line pattern as ExecutionDetail)
+    const meta = header.createDiv({ cls: "exec-meta-line" });
     const tt = d.trigger_type ?? "manual";
-    if (tt === "schedule") {
-      chips.createSpan({ cls: "agentmd-chip scheduled", text: "⏱ Scheduled" });
-    } else if (tt === "watch") {
-      chips.createSpan({ cls: "agentmd-chip watch", text: "👁 Watch" });
-    } else {
-      chips.createSpan({ cls: "agentmd-chip manual", text: "Manual" });
-    }
+    const triggerCls = tt === "schedule" ? "agentmd-trigger-scheduler" : tt === "watch" ? "agentmd-trigger-watch" : "agentmd-trigger-manual";
+    const triggerLabel = tt === "schedule" ? "⏱ Scheduled" : tt === "watch" ? "👁 Watch" : "Manual";
+    meta.createSpan({ cls: `exec-meta-item ${triggerCls}`, text: triggerLabel });
+
     if (d.model_provider || d.model_name) {
-      chips.createSpan({ cls: "agentmd-chip model", text: `${d.model_provider ?? "?"} · ${d.model_name ?? "default"}` });
+      meta.createSpan({ cls: "exec-meta-sep", text: "·" });
+      meta.createSpan({ cls: "exec-meta-item", text: `${d.model_provider ?? "?"} · ${d.model_name ?? "default"}` });
+    }
+    if (d.next_run) {
+      meta.createSpan({ cls: "exec-meta-sep", text: "·" });
+      meta.createSpan({ cls: "exec-meta-item", text: `next: ${formatRelativeTime(d.next_run)}` });
     }
 
-    // Description
+    // Row 3: description
     if (d.description) {
       header.createDiv({ cls: "agent-detail-desc", text: d.description });
     }
 
-    // Action buttons
+    // Row 4: action buttons
     const actions = header.createDiv({ cls: "agent-detail-actions" });
+
     const runBtn = actions.createEl("button", { cls: "agentmd-btn", text: "▶ Run" });
     runBtn.addEventListener("click", () => this.actions.onRunAgent(d.name, false));
 
@@ -124,7 +128,6 @@ export class AgentDetailView extends ItemView {
   private renderStats(container: HTMLElement): void {
     if (this.runs.length === 0) return;
 
-    const section = container.createDiv({ cls: "agent-detail-stats" });
     const total = this.runs.length;
     const successes = this.runs.filter((r) => r.status === "success").length;
     const rate = total > 0 ? Math.round((successes / total) * 100) : 0;
@@ -133,19 +136,21 @@ export class AgentDetailView extends ItemView {
       : 0;
     const totalCost = this.runs.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0);
 
-    this.renderStatBadge(section, "Runs", String(total));
-    this.renderStatBadge(section, "Success", `${rate}%`);
-    this.renderStatBadge(section, "Avg duration", formatDuration(avgDuration));
-    this.renderStatBadge(section, "Total spent", formatCost(totalCost));
-  }
-
-  private renderStatBadge(container: HTMLElement, label: string, value: string): void {
-    const badge = container.createDiv({ cls: "exec-stat-badge" });
-    badge.createDiv({ cls: "exec-stat-label", text: label });
-    badge.createDiv({ cls: "exec-stat-value", text: value });
+    // Same inline meta-line pattern
+    const statsSection = container.createDiv({ cls: "agent-detail-stats-section" });
+    const stats = statsSection.createDiv({ cls: "exec-meta-line exec-stats-line" });
+    stats.createSpan({ cls: "exec-meta-item", text: `${total} runs` });
+    stats.createSpan({ cls: "exec-meta-sep", text: "·" });
+    stats.createSpan({ cls: `exec-meta-item ${rate >= 80 ? "" : "agentmd-status-aborted"}`, text: `${rate}% success` });
+    stats.createSpan({ cls: "exec-meta-sep", text: "·" });
+    stats.createSpan({ cls: "exec-meta-item", text: `${formatDuration(avgDuration)} avg` });
+    stats.createSpan({ cls: "exec-meta-sep", text: "·" });
+    stats.createSpan({ cls: "exec-meta-item", text: `${formatCost(totalCost)} total` });
   }
 
   private renderRecentRuns(container: HTMLElement): void {
+    if (this.runs.length === 0) return;
+
     const section = container.createDiv({ cls: "agent-detail-section" });
     const sectionHeader = section.createDiv({ cls: "agent-detail-section-header" });
     sectionHeader.createSpan({ text: "Recent Executions" });
@@ -164,6 +169,9 @@ export class AgentDetailView extends ItemView {
       const cls = run.status === "success" ? "agentmd-status-success" : run.status === "failed" || run.status === "error" ? "agentmd-status-failed" : "agentmd-status-aborted";
       line1.createSpan({ cls, text: icon });
       line1.createSpan({ cls: "exec-row-id", text: ` #${run.id}` });
+      if (run.trigger && run.trigger !== "manual") {
+        line1.createSpan({ cls: "exec-row-trigger", text: run.trigger === "scheduler" ? " ⏱" : " 👁" });
+      }
       line1.createSpan({ cls: "exec-row-time", text: formatRelativeTime(run.started_at) });
 
       const line2 = row.createDiv({ cls: "exec-row-line2" });
@@ -180,25 +188,16 @@ export class AgentDetailView extends ItemView {
 
     const config = section.createDiv({ cls: "agent-detail-config" });
 
-    // Trigger
     this.renderConfigRow(config, "Trigger", d.trigger_type ?? "manual");
 
-    // Model
     if (d.model_provider || d.model_name) {
       this.renderConfigRow(config, "Model", `${d.model_provider}/${d.model_name}`);
     }
 
-    // Next run
-    if (d.next_run) {
-      this.renderConfigRow(config, "Next run", d.next_run);
-    }
-
-    // Last run
     if (d.last_run) {
       this.renderConfigRow(config, "Last run", formatRelativeTime(d.last_run));
     }
 
-    // Settings (limits)
     const settings = d.settings as Record<string, unknown>;
     if (settings) {
       if (settings.max_tool_calls != null) {

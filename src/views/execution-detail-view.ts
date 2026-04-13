@@ -78,7 +78,6 @@ export class ExecutionDetailView extends ItemView {
     container.empty();
     container.addClass("agentmd-exec-detail");
 
-    // Clean up previous markdown render component
     this.renderComponent?.unload();
     this.renderComponent = new Component();
     this.renderComponent.load();
@@ -103,11 +102,12 @@ export class ExecutionDetailView extends ItemView {
   // ============================================================
 
   private renderStreaming(container: HTMLElement, run: RunningExecution): void {
-    // Header
     const header = container.createDiv({ cls: "exec-header streaming" });
+
+    // Row 1: ● name #id                      ■ Stop
     const titleRow = header.createDiv({ cls: "exec-title" });
     titleRow.createSpan({ cls: "agentmd-status-running", text: "●" });
-    titleRow.createSpan({ text: ` ${run.agent}` });
+    titleRow.createSpan({ cls: "exec-name", text: ` ${run.agent}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${run.id}` });
 
     const cancelBtn = titleRow.createEl("button", { cls: "agentmd-btn", text: "■ Stop" });
@@ -118,11 +118,14 @@ export class ExecutionDetailView extends ItemView {
       this.actions.onCancel(run.id);
     });
 
-    // Status line: only elapsed time (tokens/cost come from backend only on complete)
+    // Row 2: trigger · running · elapsed
     const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
-    const statusLine = header.createDiv({ cls: "exec-stats" });
-    statusLine.createSpan({ cls: "agentmd-status-running", text: "● running" });
-    statusLine.createSpan({ text: formatDuration(elapsed) });
+    const meta = header.createDiv({ cls: "exec-meta-line" });
+    meta.createSpan({ cls: "exec-meta-item", text: run.triggerSource });
+    meta.createSpan({ cls: "exec-meta-sep", text: "·" });
+    meta.createSpan({ cls: "exec-meta-item agentmd-status-running", text: "running" });
+    meta.createSpan({ cls: "exec-meta-sep", text: "·" });
+    meta.createSpan({ cls: "exec-meta-item", text: formatDuration(elapsed) });
 
     // Log area
     const logWrapper = container.createDiv({ cls: "exec-log-wrapper" });
@@ -134,7 +137,6 @@ export class ExecutionDetailView extends ItemView {
     }
     log.createSpan({ cls: "log-cursor", text: "▌" });
 
-    // Auto-scroll to bottom
     requestAnimationFrame(() => {
       log.scrollTop = log.scrollHeight;
     });
@@ -149,25 +151,59 @@ export class ExecutionDetailView extends ItemView {
     const isFailed = exec.status === "failed" || exec.status === "error";
     const statusClass = isSuccess ? "success" : isFailed ? "failed" : "aborted";
     const statusIcon = isSuccess ? "✓" : isFailed ? "✗" : "⚠";
+    const statusLabel = isSuccess ? "success" : isFailed ? "failed" : exec.status;
     const snapshot = this.store.getCompletedSnapshot(exec.id);
 
-    // Header
     const header = container.createDiv({ cls: `exec-header ${statusClass}` });
+
+    // Row 1: ✓ name #id                      ↻ Re-run
     const titleRow = header.createDiv({ cls: "exec-title" });
     titleRow.createSpan({ cls: `agentmd-status-${statusClass}`, text: statusIcon });
-    titleRow.createSpan({ text: ` ${exec.agent_id}` });
+    titleRow.createSpan({ cls: "exec-name", text: ` ${exec.agent_id}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${exec.id}` });
 
     const rerunBtn = titleRow.createEl("button", { cls: "agentmd-btn", text: "↻ Re-run" });
     rerunBtn.style.marginLeft = "auto";
     rerunBtn.addEventListener("click", () => this.actions.onRerun(exec.agent_id));
 
-    // Stats row with all metrics
-    const statsRow = header.createDiv({ cls: "exec-stats-grid" });
-    this.renderStatBadge(statsRow, "Status", `${statusIcon} ${exec.status}`, `agentmd-status-${statusClass}`);
-    this.renderStatBadge(statsRow, "Duration", formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined));
-    this.renderStatBadge(statsRow, "Tokens", formatTokens(exec.total_tokens));
-    this.renderStatBadge(statsRow, "Cost", formatCost(exec.cost_usd));
+    // Row 2: trigger · status · duration
+    const meta = header.createDiv({ cls: "exec-meta-line" });
+    if (exec.trigger) {
+      meta.createSpan({ cls: "exec-meta-item", text: exec.trigger });
+      meta.createSpan({ cls: "exec-meta-sep", text: "·" });
+    }
+    meta.createSpan({ cls: `exec-meta-item agentmd-status-${statusClass}`, text: statusLabel });
+    if (exec.duration_ms != null) {
+      meta.createSpan({ cls: "exec-meta-sep", text: "·" });
+      meta.createSpan({ cls: "exec-meta-item", text: formatDuration(exec.duration_ms / 1000) });
+    }
+
+    // Row 3: input · output · total tokens · cost
+    const hasTokens = exec.input_tokens != null || exec.output_tokens != null || exec.total_tokens != null;
+    if (hasTokens || exec.cost_usd != null) {
+      const stats = header.createDiv({ cls: "exec-meta-line exec-stats-line" });
+      if (exec.input_tokens != null) {
+        stats.createSpan({ cls: "exec-meta-item", text: `${this.fmtNum(exec.input_tokens)} input` });
+      }
+      if (exec.output_tokens != null) {
+        if (exec.input_tokens != null) stats.createSpan({ cls: "exec-meta-sep", text: "·" });
+        stats.createSpan({ cls: "exec-meta-item", text: `${this.fmtNum(exec.output_tokens)} output` });
+      }
+      if (exec.total_tokens != null) {
+        if (exec.input_tokens != null || exec.output_tokens != null) stats.createSpan({ cls: "exec-meta-sep", text: "·" });
+        stats.createSpan({ cls: "exec-meta-item exec-meta-highlight", text: `${this.fmtNum(exec.total_tokens)} total` });
+      }
+      if (exec.cost_usd != null) {
+        stats.createSpan({ cls: "exec-meta-sep", text: "·" });
+        stats.createSpan({ cls: "exec-meta-item", text: formatCost(exec.cost_usd) });
+      }
+    }
+
+    // Error message
+    if (exec.error) {
+      const errorLine = header.createDiv({ cls: "exec-error-line" });
+      errorLine.createSpan({ text: exec.error });
+    }
 
     // Final answer — rendered as markdown
     if (snapshot?.finalAnswer) {
@@ -214,11 +250,9 @@ export class ExecutionDetailView extends ItemView {
   //  HELPERS
   // ============================================================
 
-  private renderStatBadge(container: HTMLElement, label: string, value: string, valueCls?: string): void {
-    const badge = container.createDiv({ cls: "exec-stat-badge" });
-    badge.createDiv({ cls: "exec-stat-label", text: label });
-    const valEl = badge.createDiv({ cls: "exec-stat-value", text: value });
-    if (valueCls) valEl.addClass(valueCls);
+  private fmtNum(n: number): string {
+    if (n < 1000) return String(n);
+    return `${(n / 1000).toFixed(1)}k`;
   }
 
   private countToolCalls(events: ParsedSSEEvent[]): number {
