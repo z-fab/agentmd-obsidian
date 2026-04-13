@@ -63,9 +63,28 @@ export class ExecutionDetailView extends ItemView {
     this.renderComponent?.unload();
   }
 
+  private tickCount = 0;
+
   private startTick(): void {
     if (this.tickTimer) return;
-    this.tickTimer = setInterval(() => this.render(), 1000);
+    this.tickCount = 0;
+    this.tickTimer = setInterval(() => {
+      this.tickCount++;
+      // Every 3 ticks (3s), verify with the API that the execution is still running.
+      // If the SSE complete event was missed, this catches it.
+      if (this.tickCount % 3 === 0 && this.store.running.has(this.executionId)) {
+        void this.verifyStillRunning();
+      }
+      this.render();
+    }, 1000);
+  }
+
+  private async verifyStillRunning(): Promise<void> {
+    const exec = await this.actions.fetchExecution(this.executionId);
+    if (exec && exec.status !== "running" && exec.status !== "pending") {
+      // API says it's done but store still has it as running — force transition
+      this.store.completeExecution(this.executionId, exec);
+    }
   }
 
   private stopTick(): void {
