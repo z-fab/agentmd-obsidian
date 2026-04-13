@@ -5,7 +5,10 @@ import { EventStore } from "./src/store/event-store";
 import { AgentsView } from "./src/views/agents-view";
 import { LiveView } from "./src/views/live-view";
 import { ExecutionDetailView } from "./src/views/execution-detail-view";
-import { VIEW_TYPE_AGENTS, VIEW_TYPE_LIVE, VIEW_TYPE_EXEC_DETAIL } from "./src/views/constants";
+import { ExecutionsView } from "./src/views/executions-view";
+import { AgentDetailView } from "./src/views/agent-detail-view";
+import { AgentmdSettingTab } from "./src/settings-tab";
+import { VIEW_TYPE_AGENTS, VIEW_TYPE_LIVE, VIEW_TYPE_EXEC_DETAIL, VIEW_TYPE_EXECUTIONS, VIEW_TYPE_AGENT_DETAIL } from "./src/views/constants";
 import { DEFAULT_SETTINGS, type AgentmdSettings } from "./src/settings";
 import type { ExecutionSummary } from "./src/types";
 
@@ -13,7 +16,7 @@ export default class AgentmdPlugin extends Plugin {
   private client!: AgentmdClient;
   private monitor!: BackendMonitor;
   private store!: EventStore;
-  private settings!: AgentmdSettings;
+  settings!: AgentmdSettings;
   private statusBarEl!: HTMLElement;
   private unsubMonitor: (() => void) | null = null;
   /** Map of execution ID → SSE close function */
@@ -48,6 +51,7 @@ export default class AgentmdPlugin extends Plugin {
         onRunAgent: (name, withFile) => this.runAgent(name, withFile),
         onRefreshAgents: () => void this.refreshData(),
         getCurrentFilePath: () => this.getCurrentFilePath(),
+        onOpenAgentDetail: (name) => this.openAgentDetail(name),
       }),
     );
     this.registerView(VIEW_TYPE_LIVE, (leaf) =>
@@ -60,6 +64,24 @@ export default class AgentmdPlugin extends Plugin {
       new ExecutionDetailView(leaf, this.store, {
         onCancel: (id) => this.cancelExecution(id),
         onRerun: (name) => this.runAgent(name, false),
+      }),
+    );
+    this.registerView(VIEW_TYPE_EXECUTIONS, (leaf) =>
+      new ExecutionsView(leaf, this.store, {
+        onOpenExecution: (id) => this.openExecutionDetail(id),
+        onRefreshExecutions: () => void this.refreshData(),
+        getExecutions: (params) => this.client.listExecutions(params),
+      }),
+    );
+    this.registerView(VIEW_TYPE_AGENT_DETAIL, (leaf) =>
+      new AgentDetailView(leaf, this.store, {
+        onRunAgent: (name, withFile) => this.runAgent(name, withFile),
+        onOpenSourceFile: (name) => this.openSourceFile(name),
+        onOpenExecution: (id) => this.openExecutionDetail(id),
+        onOpenExecutions: (name) => this.openExecutionsForAgent(name),
+        getCurrentFilePath: () => this.getCurrentFilePath(),
+        fetchAgentDetail: (name) => this.client.getAgent(name),
+        fetchAgentRuns: (name, limit) => this.client.getAgentRuns(name, limit),
       }),
     );
 
@@ -79,6 +101,30 @@ export default class AgentmdPlugin extends Plugin {
       name: "Run current file through agent…",
       callback: () => this.promptRunWithFile(),
     });
+    this.addCommand({
+      id: "open-executions",
+      name: "Open Executions panel",
+      callback: () => this.activateView(VIEW_TYPE_EXECUTIONS),
+    });
+    this.addCommand({
+      id: "pause-scheduler",
+      name: "Pause scheduler",
+      callback: async () => {
+        try { await this.client.pauseScheduler(); new Notice("Scheduler paused"); }
+        catch { new Notice("Failed to pause scheduler"); }
+      },
+    });
+    this.addCommand({
+      id: "resume-scheduler",
+      name: "Resume scheduler",
+      callback: async () => {
+        try { await this.client.resumeScheduler(); new Notice("Scheduler resumed"); }
+        catch { new Notice("Failed to resume scheduler"); }
+      },
+    });
+
+    // Settings tab
+    this.addSettingTab(new AgentmdSettingTab(this.app, this));
 
     // Ribbon icon
     this.addRibbonIcon("cpu", "AgentMD", () => {
@@ -90,6 +136,7 @@ export default class AgentmdPlugin extends Plugin {
       this.app.workspace.onLayoutReady(() => {
         void this.activateView(VIEW_TYPE_AGENTS);
         void this.activateView(VIEW_TYPE_LIVE);
+        void this.activateView(VIEW_TYPE_EXECUTIONS);
       });
     }
 
@@ -114,6 +161,10 @@ export default class AgentmdPlugin extends Plugin {
     if (this.agentRefreshTimer != null) clearInterval(this.agentRefreshTimer);
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
   }
 
   // ---- Actions ----
@@ -224,6 +275,34 @@ export default class AgentmdPlugin extends Plugin {
     await leaf.setViewState({ type: VIEW_TYPE_EXEC_DETAIL, active: true });
     const view = leaf.view as ExecutionDetailView;
     view.setExecutionId(executionId);
+  }
+
+  private async openAgentDetail(name: string): Promise<void> {
+    const leaf = this.app.workspace.getLeaf("tab");
+    await leaf.setViewState({ type: VIEW_TYPE_AGENT_DETAIL, active: true });
+    const view = leaf.view as AgentDetailView;
+    await view.setAgent(name);
+  }
+
+  private openSourceFile(agentName: string): void {
+    const filePath = `${this.settings.agentsDir}/${agentName}.md`;
+    const vaultPath = (this.app.vault.adapter as any).basePath as string;
+    if (filePath.startsWith(vaultPath)) {
+      const relative = filePath.slice(vaultPath.length + 1);
+      const file = this.app.vault.getAbstractFileByPath(relative);
+      if (file) {
+        void this.app.workspace.getLeaf("tab").openFile(file as any);
+        return;
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { shell } = require("electron") as { shell: { showItemInFolder: (path: string) => void } };
+    shell.showItemInFolder(filePath);
+    new Notice(`Source file revealed in file manager: ${agentName}.md`);
+  }
+
+  private async openExecutionsForAgent(agentName: string): Promise<void> {
+    await this.activateView(VIEW_TYPE_EXECUTIONS);
   }
 
   private async activateView(viewType: string): Promise<void> {

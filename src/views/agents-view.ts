@@ -8,6 +8,7 @@ export interface AgentsViewActions {
   onRunAgent: (name: string, withCurrentFile: boolean) => void;
   onRefreshAgents: () => void;
   getCurrentFilePath: () => string | null;
+  onOpenAgentDetail: (name: string) => void;
 }
 
 export class AgentsView extends ItemView {
@@ -68,6 +69,7 @@ export class AgentsView extends ItemView {
   private renderCard(container: HTMLElement, agent: AgentSummary): void {
     const isRunning = this.isAgentRunning(agent.name);
     const card = container.createDiv({ cls: `agentmd-agent-card ${isRunning ? "is-running" : ""}` });
+    card.addEventListener("click", () => this.actions.onOpenAgentDetail(agent.name));
 
     // Row 1: name + trigger chip + menu
     const headerEl = card.createDiv({ cls: "agent-header" });
