@@ -9,6 +9,7 @@ export interface AgentsViewActions {
   onRefreshAgents: () => void;
   getCurrentFilePath: () => string | null;
   onOpenAgentDetail: (name: string) => void;
+  isOnline: () => boolean;
 }
 
 export class AgentsView extends ItemView {
@@ -42,6 +43,13 @@ export class AgentsView extends ItemView {
     const container = this.contentEl;
     container.empty();
     container.addClass("agentmd-agents-view");
+
+    if (!this.actions.isOnline()) {
+      const banner = container.createDiv({ cls: "agentmd-offline-banner" });
+      banner.createSpan({ text: "⚠ Backend offline — run " });
+      banner.createEl("code", { text: "agentmd start -d" });
+      banner.createSpan({ text: " in your terminal" });
+    }
 
     // Header
     const header = container.createDiv({ cls: "agentmd-view-header" });

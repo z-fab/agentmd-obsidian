@@ -8,6 +8,7 @@ export interface ExecutionsViewActions {
   onOpenExecution: (executionId: number) => void;
   onRefreshExecutions: () => void;
   getExecutions: (params: { status?: string; agent?: string; limit: number; offset: number }) => Promise<ExecutionSummary[]>;
+  isOnline: () => boolean;
 }
 
 type StatusFilter = "all" | "success" | "failed" | "aborted";
@@ -76,6 +77,13 @@ export class ExecutionsView extends ItemView {
   private render(): void {
     const container = this.contentEl;
     container.empty();
+
+    if (!this.actions.isOnline()) {
+      const banner = container.createDiv({ cls: "agentmd-offline-banner" });
+      banner.createSpan({ text: "⚠ Backend offline — run " });
+      banner.createEl("code", { text: "agentmd start -d" });
+      banner.createSpan({ text: " in your terminal" });
+    }
 
     // Header
     const header = container.createDiv({ cls: "agentmd-view-header" });
