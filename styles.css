@@ -16,6 +16,7 @@
 /* ---------- Status bar ---------- */
 .agentmd-status-bar {
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
 }
 .agentmd-status-dot {
   margin-right: 4px;
@@ -23,12 +24,18 @@
 .agentmd-status-online .agentmd-status-dot {
   animation: agentmd-pulse 2s ease-in-out infinite;
 }
+.agentmd-status-fallback .agentmd-status-dot {
+  animation: none;
+}
 @keyframes agentmd-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
 .agentmd-status-bar.agentmd-status-online {
   color: #10b981;
+}
+.agentmd-status-bar.agentmd-status-fallback {
+  color: #f59e0b;
 }
 .agentmd-status-bar.agentmd-status-offline {
   color: var(--text-faint);
@@ -633,4 +640,9 @@
   border-radius: 3px;
   font-family: var(--font-monospace);
   color: var(--text-muted);
+}
+.agentmd-offline-start-btn {
+  margin-top: 12px;
+  padding: 6px 16px;
+  font-size: var(--font-ui-small);
 }
