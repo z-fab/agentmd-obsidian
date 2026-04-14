@@ -142,6 +142,43 @@ export class EventStore {
     this.notify(this.runningListeners);
   }
 
+  /**
+   * Sync running executions with the API response.
+   * Removes entries not in the API list, adds new ones.
+   * Returns the IDs of newly added executions (caller should subscribe SSE for them).
+   */
+  syncRunning(apiRunning: ExecutionSummary[]): number[] {
+    const apiIds = new Set(apiRunning.map((e) => e.id));
+    const newIds: number[] = [];
+
+    // Remove stale entries
+    for (const id of this._running.keys()) {
+      if (!apiIds.has(id)) {
+        this._running.delete(id);
+      }
+    }
+
+    // Add new entries
+    for (const exec of apiRunning) {
+      if (!this._running.has(exec.id)) {
+        this._running.set(exec.id, {
+          id: exec.id,
+          agent: exec.agent_id,
+          triggerSource: exec.trigger ?? "unknown",
+          startedAt: new Date(exec.started_at).getTime(),
+          events: [],
+          lastActivity: "",
+          tokensTotal: 0,
+          costUsd: 0,
+        });
+        newIds.push(exec.id);
+      }
+    }
+
+    this.notify(this.runningListeners);
+    return newIds;
+  }
+
   // ---- Internal ----
 
   private notify(listeners: Set<Listener>): void {

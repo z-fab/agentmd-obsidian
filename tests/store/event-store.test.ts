@@ -92,3 +92,60 @@ describe("EventStore — running executions", () => {
     expect(historyCb).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("EventStore.syncRunning", () => {
+  it("adds new running executions and removes stale ones", () => {
+    const store = new EventStore();
+
+    // Pre-existing running execution #1 (will be removed - not in API list)
+    store.startExecution(1, "old-agent", "manual");
+    // Pre-existing running execution #2 (will remain - in API list)
+    store.startExecution(2, "keep-agent", "scheduler");
+
+    const apiRunning: ExecutionSummary[] = [
+      {
+        id: 2,
+        agent_id: "keep-agent",
+        status: "running",
+        trigger: "scheduler",
+        started_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: 3,
+        agent_id: "new-agent",
+        status: "running",
+        trigger: "watch",
+        started_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+
+    const newIds = store.syncRunning(apiRunning);
+
+    // #1 removed, #2 kept, #3 added
+    expect(store.running.has(1)).toBe(false);
+    expect(store.running.has(2)).toBe(true);
+    expect(store.running.has(3)).toBe(true);
+    expect(store.running.get(3)?.agent).toBe("new-agent");
+    // Returns only newly added IDs
+    expect(newIds).toEqual([3]);
+  });
+
+  it("returns empty array when no new executions", () => {
+    const store = new EventStore();
+    store.startExecution(1, "agent-a", "manual");
+
+    const apiRunning: ExecutionSummary[] = [
+      {
+        id: 1,
+        agent_id: "agent-a",
+        status: "running",
+        trigger: "manual",
+        started_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+
+    const newIds = store.syncRunning(apiRunning);
+    expect(newIds).toEqual([]);
+    expect(store.running.size).toBe(1);
+  });
+});
