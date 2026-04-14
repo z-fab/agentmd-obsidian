@@ -1,25 +1,26 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import type { ExecutionSummary } from "../types";
+import type { EventStore, RunningExecution } from "../store/event-store";
 import { VIEW_TYPE_LIVE } from "./constants";
 import { formatDuration, formatTokens, formatCost } from "../ui/format";
 
 export interface LiveViewActions {
   onOpenExecution: (executionId: number) => void;
   onCancelExecution: (executionId: number) => void;
+  onStartBackend: () => void;
   isOnline: () => boolean;
   onOnlineChanged: (listener: () => void) => () => void;
-  /** Fetch currently running executions directly from the API. */
-  fetchRunning: () => Promise<ExecutionSummary[]>;
 }
 
 export class LiveView extends ItemView {
+  private store: EventStore;
   private actions: LiveViewActions;
+  private unsubRunning: (() => void) | null = null;
   private unsubOnline: (() => void) | null = null;
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private executions: ExecutionSummary[] = [];
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(leaf: WorkspaceLeaf, actions: LiveViewActions) {
+  constructor(leaf: WorkspaceLeaf, store: EventStore, actions: LiveViewActions) {
     super(leaf);
+    this.store = store;
     this.actions = actions;
   }
 
@@ -28,37 +29,27 @@ export class LiveView extends ItemView {
   getIcon(): string { return "activity"; }
 
   async onOpen(): Promise<void> {
-    this.unsubOnline = this.actions.onOnlineChanged(() => {
-      void this.poll();
-    });
-    // Start polling every 2 seconds
-    this.pollTimer = setInterval(() => {
-      if (this.actions.isOnline()) void this.poll();
-    }, 2000);
-    // Initial poll
-    void this.poll();
+    this.unsubRunning = this.store.onRunningChanged(() => this.render());
+    this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
+    this.render();
   }
 
   async onClose(): Promise<void> {
+    this.unsubRunning?.();
     this.unsubOnline?.();
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
+    this.stopTick();
   }
 
-  private async poll(): Promise<void> {
-    if (!this.actions.isOnline()) {
-      this.executions = [];
-      this.render();
-      return;
+  private startTick(): void {
+    if (this.tickTimer) return;
+    this.tickTimer = setInterval(() => this.render(), 1000);
+  }
+
+  private stopTick(): void {
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
     }
-    try {
-      this.executions = await this.actions.fetchRunning();
-    } catch {
-      // offline or error — keep last known state
-    }
-    this.render();
   }
 
   private render(): void {
@@ -66,6 +57,7 @@ export class LiveView extends ItemView {
     container.empty();
 
     if (!this.actions.isOnline()) {
+      this.stopTick();
       this.renderOffline(container);
       return;
     }
@@ -75,36 +67,38 @@ export class LiveView extends ItemView {
     const left = header.createDiv({ cls: "agentmd-header-left" });
     left.createSpan({ cls: "agentmd-view-icon", text: "◆" });
     left.createSpan({ cls: "agentmd-header-title", text: "Live" });
-    if (this.executions.length > 0) {
-      left.createSpan({ cls: "agentmd-header-badge", text: String(this.executions.length) });
+    const runningCount = this.store.running.size;
+    if (runningCount > 0) {
+      left.createSpan({ cls: "agentmd-header-badge", text: String(runningCount) });
     }
 
-    if (this.executions.length === 0) {
+    if (runningCount === 0) {
+      this.stopTick();
       container.createDiv({
         cls: "agentmd-empty",
-        text: this.actions.isOnline()
-          ? "No running executions. Click ▶ on an agent to start one."
-          : "",
+        text: "No running executions. Click ▶ on an agent to start one.",
       });
       return;
     }
 
-    for (const exec of this.executions) {
+    // Start tick for elapsed time updates
+    this.startTick();
+
+    for (const [, exec] of this.store.running) {
       this.renderCard(container, exec);
     }
   }
 
-  private renderCard(container: HTMLElement, exec: ExecutionSummary): void {
+  private renderCard(container: HTMLElement, exec: RunningExecution): void {
     const card = container.createDiv({ cls: "agentmd-live-card" });
     card.addEventListener("click", () => this.actions.onOpenExecution(exec.id));
 
-    // Row 1: dot + name + #id + trigger + cancel
     const headerEl = card.createDiv({ cls: "live-header" });
     headerEl.createSpan({ cls: "live-dot", text: "●" });
-    headerEl.createSpan({ cls: "live-name", text: exec.agent_id });
+    headerEl.createSpan({ cls: "live-name", text: exec.agent });
     headerEl.createSpan({ cls: "live-id", text: `#${exec.id}` });
 
-    const trigger = exec.trigger ?? "manual";
+    const trigger = exec.triggerSource;
     const triggerCls =
       trigger === "scheduler" || trigger === "schedule" ? "agentmd-trigger-scheduler" :
       trigger === "watch" ? "agentmd-trigger-watch" :
@@ -120,17 +114,14 @@ export class LiveView extends ItemView {
       this.actions.onCancelExecution(exec.id);
     });
 
-    // Row 2: elapsed time + tokens + cost (from API data)
-    const elapsed = exec.started_at
-      ? Math.round((Date.now() - new Date(exec.started_at).getTime()) / 1000)
-      : 0;
+    const elapsed = Math.round((Date.now() - exec.startedAt) / 1000);
     const stats = card.createDiv({ cls: "live-stats" });
     stats.createSpan({ text: formatDuration(elapsed) });
-    if (exec.total_tokens != null && exec.total_tokens > 0) {
-      stats.createSpan({ text: formatTokens(exec.total_tokens) });
+    if (exec.tokensTotal > 0) {
+      stats.createSpan({ text: formatTokens(exec.tokensTotal) });
     }
-    if (exec.cost_usd != null && exec.cost_usd > 0) {
-      stats.createSpan({ text: formatCost(exec.cost_usd) });
+    if (exec.costUsd > 0) {
+      stats.createSpan({ text: formatCost(exec.costUsd) });
     }
   }
 
@@ -138,9 +129,14 @@ export class LiveView extends ItemView {
     const wrapper = container.createDiv({ cls: "agentmd-offline-state" });
     wrapper.createDiv({ cls: "agentmd-offline-icon", text: "⚠" });
     wrapper.createDiv({ cls: "agentmd-offline-title", text: "Backend offline" });
-    const cmd = wrapper.createDiv({ cls: "agentmd-offline-cmd" });
-    cmd.createSpan({ text: "Run " });
-    cmd.createEl("code", { text: "agentmd start -d" });
-    cmd.createSpan({ text: " to connect" });
+    const startBtn = wrapper.createEl("button", {
+      cls: "agentmd-btn primary agentmd-offline-start-btn",
+      text: "▶ Start AgentMD",
+    });
+    startBtn.addEventListener("click", () => {
+      startBtn.setText("Starting…");
+      startBtn.disabled = true;
+      this.actions.onStartBackend();
+    });
   }
 }
