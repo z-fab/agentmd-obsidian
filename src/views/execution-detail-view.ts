@@ -351,6 +351,19 @@ export class ExecutionDetailView extends ItemView {
     } else if (event.type === "final_answer" && msg) {
       const line = container.createDiv({ cls: "log-line log-final-line" });
       line.createSpan({ cls: "log-ai", text: `✅ ${msg}` });
+    } else if (event.type === "system" && msg) {
+      const line = container.createDiv({ cls: "log-line log-system-line" });
+      const header = line.createSpan({ cls: "log-system-label clickable", text: "▶ System Prompt" });
+      const content = line.createDiv({ cls: "log-system-content collapsed" });
+      content.createSpan({ text: msg });
+      header.addEventListener("click", () => {
+        const isCollapsed = content.hasClass("collapsed");
+        content.toggleClass("collapsed", !isCollapsed);
+        header.setText(isCollapsed ? "▼ System Prompt" : "▶ System Prompt");
+      });
+    } else if (event.type === "human" && msg) {
+      const line = container.createDiv({ cls: "log-line log-human-line" });
+      line.createSpan({ cls: "log-human", text: `👤 ${msg}` });
     } else if (event.type === "meta" && msg) {
       const line = container.createDiv({ cls: "log-line" });
       line.createSpan({ cls: "log-args", text: `ℹ ${msg}` });

@@ -402,6 +402,38 @@
 .agentmd-exec-detail .exec-log .log-ai-line {
   margin-top: 4px;
 }
+.agentmd-exec-detail .exec-log .log-system-line {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.agentmd-exec-detail .exec-log .log-system-label {
+  color: #f59e0b;
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+}
+.agentmd-exec-detail .exec-log .log-system-label:hover {
+  color: #fbbf24;
+}
+.agentmd-exec-detail .exec-log .log-system-content {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(245,158,11,0.06);
+  border-radius: 4px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.agentmd-exec-detail .exec-log .log-system-content.collapsed {
+  display: none;
+}
+.agentmd-exec-detail .exec-log .log-human {
+  color: #3b82f6;
+}
+.agentmd-exec-detail .exec-log .log-human-line {
+  margin-bottom: 4px;
+}
 .agentmd-exec-detail .exec-log .log-final-line {
   margin-top: 6px;
   padding-top: 6px;
