@@ -10,6 +10,7 @@ export interface ExecutionsViewActions {
   getExecutions: (params: { status?: string; agent?: string; limit: number; offset: number }) => Promise<ExecutionSummary[]>;
   isOnline: () => boolean;
   onOnlineChanged: (listener: () => void) => () => void;
+  onStartBackend: () => void;
 }
 
 type StatusFilter = "all" | "success" | "failed" | "aborted";
@@ -236,9 +237,14 @@ export class ExecutionsView extends ItemView {
     const wrapper = container.createDiv({ cls: "agentmd-offline-state" });
     wrapper.createDiv({ cls: "agentmd-offline-icon", text: "⚠" });
     wrapper.createDiv({ cls: "agentmd-offline-title", text: "Backend offline" });
-    const cmd = wrapper.createDiv({ cls: "agentmd-offline-cmd" });
-    cmd.createSpan({ text: "Run " });
-    cmd.createEl("code", { text: "agentmd start -d" });
-    cmd.createSpan({ text: " to connect" });
+    const startBtn = wrapper.createEl("button", {
+      cls: "agentmd-btn primary agentmd-offline-start-btn",
+      text: "▶ Start AgentMD",
+    });
+    startBtn.addEventListener("click", () => {
+      startBtn.setText("Starting…");
+      startBtn.disabled = true;
+      this.actions.onStartBackend();
+    });
   }
 }
