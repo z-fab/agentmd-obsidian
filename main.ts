@@ -76,14 +76,14 @@ export default class AgentmdPlugin extends Plugin {
         onOpenAgentDetail: (name) => this.openAgentDetail(name),
         isOnline: () => this.monitor.online,
         onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
-        onStartBackend: () => void this.startBackend(),
+        onStartBackend: () => this.startBackend(),
       }),
     );
     this.registerView(VIEW_TYPE_LIVE, (leaf) =>
       new LiveView(leaf, this.store, {
         onOpenExecution: (id) => this.openExecutionDetail(id),
         onCancelExecution: (id) => this.cancelExecution(id),
-        onStartBackend: () => void this.startBackend(),
+        onStartBackend: () => this.startBackend(),
         isOnline: () => this.monitor.online,
         onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
       }),
@@ -109,7 +109,7 @@ export default class AgentmdPlugin extends Plugin {
         getExecutions: (params) => this.client.listExecutions(params),
         isOnline: () => this.monitor.online,
         onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
-        onStartBackend: () => void this.startBackend(),
+        onStartBackend: () => this.startBackend(),
       }),
     );
     this.registerView(VIEW_TYPE_AGENT_DETAIL, (leaf) =>
@@ -287,14 +287,16 @@ export default class AgentmdPlugin extends Plugin {
 
   // ---- Backend lifecycle ----
 
-  private async startBackend(): Promise<void> {
+  private async startBackend(): Promise<boolean> {
     new Notice("Starting AgentMD…");
     const result = await this.lifecycle.start();
     if (result.success) {
       new Notice("AgentMD started");
       this.globalSSE.reconnectNow();
+      return true;
     } else {
       new Notice(`Failed to start AgentMD: ${result.error}`);
+      return false;
     }
   }
 

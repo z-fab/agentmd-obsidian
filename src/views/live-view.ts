@@ -6,7 +6,7 @@ import { formatDuration, formatTokens, formatCost } from "../ui/format";
 export interface LiveViewActions {
   onOpenExecution: (executionId: number) => void;
   onCancelExecution: (executionId: number) => void;
-  onStartBackend: () => void;
+  onStartBackend: () => Promise<boolean>;
   isOnline: () => boolean;
   onOnlineChanged: (listener: () => void) => () => void;
 }
@@ -133,10 +133,14 @@ export class LiveView extends ItemView {
       cls: "agentmd-btn primary agentmd-offline-start-btn",
       text: "▶ Start AgentMD",
     });
-    startBtn.addEventListener("click", () => {
+    startBtn.addEventListener("click", async () => {
       startBtn.setText("Starting…");
       startBtn.disabled = true;
-      this.actions.onStartBackend();
+      const ok = await this.actions.onStartBackend();
+      if (!ok) {
+        startBtn.setText("▶ Start AgentMD");
+        startBtn.disabled = false;
+      }
     });
   }
 }
