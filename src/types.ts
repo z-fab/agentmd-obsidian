@@ -97,6 +97,34 @@ export interface ParsedSSEEvent {
   data: SSEEventData;
 }
 
+// ---------- Global SSE events (GET /events/stream) ----------
+
+export interface GlobalSSEHeartbeat {
+  timestamp: string;
+}
+
+export interface GlobalSSEExecutionStarted {
+  execution_id: number;
+  agent_name: string;
+  trigger: string;
+}
+
+export interface GlobalSSEExecutionCompleted {
+  execution_id: number;
+  agent_name: string;
+  status: string;
+  duration_ms: number;
+}
+
+export interface GlobalSSEAgentsChanged {
+  event: "loaded" | "updated" | "removed";
+  agent_name: string;
+}
+
+export interface GlobalSSESchedulerChanged {
+  status: "paused" | "running";
+}
+
 // ---------- Log entries (from GET /executions/{id}/messages) ----------
 
 export interface LogEntry {

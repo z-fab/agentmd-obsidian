@@ -116,6 +116,11 @@ export class AgentmdClient {
     await this.post("/scheduler/resume");
   }
 
+  /** Sends a graceful shutdown request to the backend. */
+  async shutdown(): Promise<void> {
+    await this.post("/shutdown");
+  }
+
   /** Fetches executions, optionally filtered. */
   async listExecutions(params?: {
     status?: string;
