@@ -19,6 +19,7 @@ export class AgentsView extends ItemView {
   private actions: AgentsViewActions;
   private unsubAgents: (() => void) | null = null;
   private unsubOnline: (() => void) | null = null;
+  private leafChangeRef: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, store: EventStore, actions: AgentsViewActions) {
     super(leaf);
@@ -28,17 +29,24 @@ export class AgentsView extends ItemView {
 
   getViewType(): string { return VIEW_TYPE_AGENTS; }
   getDisplayText(): string { return "Agents"; }
-  getIcon(): string { return "cpu"; }
+  getIcon(): string { return "bot"; }
 
   async onOpen(): Promise<void> {
     this.render();
     this.unsubAgents = this.store.onAgentsChanged(() => this.render());
     this.unsubOnline = this.actions.onOnlineChanged(() => this.render());
+    // Re-render when active file changes so the "run with file" button updates
+    this.leafChangeRef = () => this.render();
+    this.app.workspace.on("active-leaf-change", this.leafChangeRef);
   }
 
   async onClose(): Promise<void> {
     this.unsubAgents?.();
     this.unsubOnline?.();
+    if (this.leafChangeRef) {
+      this.app.workspace.off("active-leaf-change", this.leafChangeRef);
+      this.leafChangeRef = null;
+    }
   }
 
   private render(): void {
