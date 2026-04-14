@@ -4,32 +4,33 @@ export interface HealthProvider {
 
 export interface BackendMonitorOptions {
   client: HealthProvider;
-  /** Normal interval between probes, in milliseconds. Default 15000. */
+  /** Fallback poll interval in milliseconds. Default 15000. */
   intervalMs?: number;
-  /** Failure backoff steps, in milliseconds. Default: [5000, 10000, 30000, 60000]. */
-  backoffMs?: number[];
 }
 
 export type OnlineListener = (online: boolean) => void;
+export type ConnectionMode = "sse" | "fallback" | "offline";
 
 export class BackendMonitor {
   private _online = false;
+  private _mode: ConnectionMode = "offline";
   private readonly client: HealthProvider;
   private readonly intervalMs: number;
-  private readonly backoffMs: number[];
-  private backoffIndex = 0;
-  private timer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<OnlineListener>();
-  private running = false;
+  private fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  private fallbackRunning = false;
 
   constructor(options: BackendMonitorOptions) {
     this.client = options.client;
     this.intervalMs = options.intervalMs ?? 15000;
-    this.backoffMs = options.backoffMs ?? [5000, 10000, 30000, 60000];
   }
 
   get online(): boolean {
     return this._online;
+  }
+
+  get mode(): ConnectionMode {
+    return this._mode;
   }
 
   subscribe(listener: OnlineListener): () => void {
@@ -37,84 +38,70 @@ export class BackendMonitor {
     return () => this.listeners.delete(listener);
   }
 
-  private consecutiveFailures = 0;
-  private static readonly FAILURE_THRESHOLD = 3;
-
-  /**
-   * Fire a probe immediately. Used on startup and on user actions when the
-   * monitor is currently offline. Safe to call while the scheduled timer
-   * is also ticking — does not double-schedule.
-   */
-  async probeNow(): Promise<void> {
-    const alive = await this.client.health();
-    this.recordProbe(alive);
+  /** Called by GlobalSSEConnection when SSE connects. */
+  notifySSEConnected(): void {
+    this._mode = "sse";
+    this.setOnline(true);
   }
 
-  private recordProbe(alive: boolean): void {
+  /** Called by GlobalSSEConnection when SSE disconnects (before fallback). */
+  notifySSEDisconnected(): void {
+    if (this._mode === "sse") {
+      this._mode = "offline";
+    }
+    this.setOnline(false);
+  }
+
+  /** Activate fallback polling mode (called when SSE reconnection exhausted). */
+  activateFallback(): void {
+    if (this.fallbackRunning) return;
+    this._mode = "fallback";
+    this.fallbackRunning = true;
+    this.fallbackTimer = setTimeout(() => {
+      void this.fallbackTick();
+    }, 0);
+  }
+
+  /** Deactivate fallback polling (called when SSE reconnects). */
+  deactivateFallback(): void {
+    this.fallbackRunning = false;
+    if (this.fallbackTimer != null) {
+      clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+  }
+
+  /** Fire a single health probe (used by BackendLifecycle after start). */
+  async probeNow(): Promise<boolean> {
+    return this.client.health();
+  }
+
+  /** Stop everything (called on plugin unload). */
+  stop(): void {
+    this.deactivateFallback();
+  }
+
+  private async fallbackTick(): Promise<void> {
+    if (!this.fallbackRunning) return;
+
+    const alive = await this.client.health();
     if (alive) {
-      this.consecutiveFailures = 0;
       this.setOnline(true);
     } else {
-      this.consecutiveFailures += 1;
-      if (this.consecutiveFailures >= BackendMonitor.FAILURE_THRESHOLD) {
-        this.setOnline(false);
-      }
+      this.setOnline(false);
     }
+
+    if (!this.fallbackRunning) return;
+    this.fallbackTimer = setTimeout(() => {
+      void this.fallbackTick();
+    }, this.intervalMs);
   }
 
   private setOnline(next: boolean): void {
     if (this._online === next) return;
     this._online = next;
-    if (next) {
-      this.backoffIndex = 0;
-    }
     for (const listener of this.listeners) {
       listener(next);
     }
-  }
-
-  /**
-   * Begins scheduled polling. Fires a probe immediately, then schedules
-   * the next probe based on online state: `intervalMs` while online,
-   * backoff steps while offline.
-   */
-  start(): void {
-    if (this.running) return;
-    this.running = true;
-    this.timer = setTimeout(() => {
-      void this.tick();
-    }, 0);
-  }
-
-  /** Stops the scheduled timer. `probeNow()` can still be called manually. */
-  stop(): void {
-    this.running = false;
-    if (this.timer != null) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-  }
-
-  private async tick(): Promise<void> {
-    if (!this.running) return;
-    await this.probeNow();
-    if (!this.running) return;
-
-    const inBackoff =
-      !this._online &&
-      this.consecutiveFailures >= BackendMonitor.FAILURE_THRESHOLD;
-    const nextDelay = inBackoff ? this.nextBackoffDelay() : this.intervalMs;
-
-    this.timer = setTimeout(() => {
-      void this.tick();
-    }, nextDelay);
-  }
-
-  private nextBackoffDelay(): number {
-    const delay = this.backoffMs[
-      Math.min(this.backoffIndex, this.backoffMs.length - 1)
-    ];
-    this.backoffIndex += 1;
-    return delay;
   }
 }

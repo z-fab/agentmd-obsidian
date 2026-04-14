@@ -2,143 +2,113 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BackendMonitor } from "../src/backend-monitor";
 
 function fakeClient(healthImpl: () => Promise<boolean>) {
-  return {
-    health: vi.fn(healthImpl),
-  };
+  return { health: vi.fn(healthImpl) };
 }
 
-describe("BackendMonitor — initial state", () => {
-  it("starts as offline before the first probe", () => {
+describe("BackendMonitor - SSE-driven mode", () => {
+  it("starts as offline", () => {
     const client = fakeClient(async () => true);
     const monitor = new BackendMonitor({ client, intervalMs: 15000 });
     expect(monitor.online).toBe(false);
   });
-});
 
-describe("BackendMonitor — probeNow", () => {
-  it("updates online state and notifies subscribers when backend is alive", async () => {
+  it("goes online when notifySSEConnected is called", () => {
     const client = fakeClient(async () => true);
     const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
     const states: boolean[] = [];
     monitor.subscribe((online) => states.push(online));
 
-    await monitor.probeNow();
+    monitor.notifySSEConnected();
 
     expect(monitor.online).toBe(true);
     expect(states).toEqual([true]);
-    expect(client.health).toHaveBeenCalledTimes(1);
   });
 
-  it("does not notify subscribers when state is unchanged", async () => {
+  it("goes offline when notifySSEDisconnected is called", () => {
     const client = fakeClient(async () => true);
     const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
-    await monitor.probeNow(); // first probe → online
+    monitor.notifySSEConnected();
+    expect(monitor.online).toBe(true);
+
     const states: boolean[] = [];
     monitor.subscribe((online) => states.push(online));
-    await monitor.probeNow(); // still online
 
-    expect(states).toEqual([]);
+    monitor.notifySSEDisconnected();
+
+    expect(monitor.online).toBe(false);
+    expect(states).toEqual([false]);
   });
 
-  it("flips to offline after three consecutive failures", async () => {
-    let callCount = 0;
-    const client = fakeClient(async () => {
-      callCount++;
-      return callCount === 1; // true once, then false
-    });
+  it("reports mode as 'sse' when SSE is connected", () => {
+    const client = fakeClient(async () => true);
     const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
-    await monitor.probeNow(); // alive → online
-    expect(monitor.online).toBe(true);
+    monitor.notifySSEConnected();
+    expect(monitor.mode).toBe("sse");
+  });
 
-    const states: boolean[] = [];
-    monitor.subscribe((online) => states.push(online));
-
-    await monitor.probeNow(); // 1st failure → stays online
-    expect(monitor.online).toBe(true);
-    await monitor.probeNow(); // 2nd failure → stays online
-    expect(monitor.online).toBe(true);
-    await monitor.probeNow(); // 3rd failure → flips offline
-    expect(monitor.online).toBe(false);
-
-    expect(states).toEqual([false]);
+  it("reports mode as 'offline' when disconnected", () => {
+    const client = fakeClient(async () => true);
+    const monitor = new BackendMonitor({ client, intervalMs: 15000 });
+    expect(monitor.mode).toBe("offline");
   });
 });
 
-describe("BackendMonitor — scheduled polling", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
+describe("BackendMonitor - fallback polling mode", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("polls on the configured interval after start()", async () => {
+  it("polls /health when activated via activateFallback()", async () => {
     const client = fakeClient(async () => true);
     const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
-    monitor.start();
+    monitor.activateFallback();
+    expect(monitor.mode).toBe("fallback");
 
-    // Immediate probe on start
+    // Immediate probe
     await vi.runOnlyPendingTimersAsync();
     expect(client.health).toHaveBeenCalledTimes(1);
+    expect(monitor.online).toBe(true);
 
-    // Advance 15s — next probe
+    // Next poll at intervalMs
     await vi.advanceTimersByTimeAsync(15000);
     expect(client.health).toHaveBeenCalledTimes(2);
 
-    // Advance another 15s
-    await vi.advanceTimersByTimeAsync(15000);
-    expect(client.health).toHaveBeenCalledTimes(3);
-
-    monitor.stop();
+    monitor.deactivateFallback();
   });
 
-  it("stop() cancels further probes", async () => {
+  it("deactivateFallback stops polling", async () => {
     const client = fakeClient(async () => true);
     const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
-    monitor.start();
+    monitor.activateFallback();
     await vi.runOnlyPendingTimersAsync();
     expect(client.health).toHaveBeenCalledTimes(1);
 
-    monitor.stop();
+    monitor.deactivateFallback();
     await vi.advanceTimersByTimeAsync(60000);
     expect(client.health).toHaveBeenCalledTimes(1);
   });
 
-  it("uses backoff interval after going offline", async () => {
-    // Health always fails.
-    const client = fakeClient(async () => false);
-    const monitor = new BackendMonitor({
-      client,
-      intervalMs: 15000,
-      backoffMs: [5000, 10000, 30000, 60000],
-    });
+  it("reports mode as 'fallback' during fallback polling", () => {
+    const client = fakeClient(async () => true);
+    const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
-    monitor.start();
+    monitor.activateFallback();
+    expect(monitor.mode).toBe("fallback");
+    monitor.deactivateFallback();
+  });
+});
 
-    // Three failures to flip offline.
-    await vi.runOnlyPendingTimersAsync(); // probe 1
-    await vi.advanceTimersByTimeAsync(15000); // probe 2
-    await vi.advanceTimersByTimeAsync(15000); // probe 3 → offline
+describe("BackendMonitor - probeNow", () => {
+  it("returns health check result", async () => {
+    const client = fakeClient(async () => true);
+    const monitor = new BackendMonitor({ client, intervalMs: 15000 });
 
-    expect(monitor.online).toBe(false);
-    const callsAtOffline = client.health.mock.calls.length;
-
-    // Now backoff kicks in: next probe in 5000ms, not 15000ms
-    await vi.advanceTimersByTimeAsync(4999);
-    expect(client.health).toHaveBeenCalledTimes(callsAtOffline);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(client.health).toHaveBeenCalledTimes(callsAtOffline + 1);
-
-    // Next backoff step: 10000ms
-    await vi.advanceTimersByTimeAsync(10000);
-    expect(client.health).toHaveBeenCalledTimes(callsAtOffline + 2);
-
-    monitor.stop();
+    const result = await monitor.probeNow();
+    expect(result).toBe(true);
+    expect(client.health).toHaveBeenCalledOnce();
   });
 });
