@@ -304,6 +304,7 @@ export default class AgentmdPlugin extends Plugin {
       this.globalSSE.stop();
       this.monitor.notifySSEDisconnected();
       new Notice("AgentMD stopped");
+      // Restart SSE so it auto-reconnects when the user starts the backend again
       this.globalSSE.start();
     } else {
       new Notice("Failed to stop AgentMD");
@@ -353,6 +354,11 @@ export default class AgentmdPlugin extends Plugin {
       (event) => {
         this.store.pushEvent(executionId, event);
         if (event.type === "complete") {
+          // Guard: global SSE may have already completed this execution
+          if (!this.store.running.has(executionId)) {
+            this.sseConnections.delete(executionId);
+            return;
+          }
           const summary: ExecutionSummary = {
             id: executionId,
             agent_id: this.store.running.get(executionId)?.agent ?? "unknown",

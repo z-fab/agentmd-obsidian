@@ -150,11 +150,13 @@ export class EventStore {
   syncRunning(apiRunning: ExecutionSummary[]): number[] {
     const apiIds = new Set(apiRunning.map((e) => e.id));
     const newIds: number[] = [];
+    let changed = false;
 
     // Remove stale entries
     for (const id of this._running.keys()) {
       if (!apiIds.has(id)) {
         this._running.delete(id);
+        changed = true;
       }
     }
 
@@ -172,10 +174,13 @@ export class EventStore {
           costUsd: 0,
         });
         newIds.push(exec.id);
+        changed = true;
       }
     }
 
-    this.notify(this.runningListeners);
+    if (changed) {
+      this.notify(this.runningListeners);
+    }
     return newIds;
   }
 
