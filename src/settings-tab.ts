@@ -82,5 +82,22 @@ export class AgentmdSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           }),
       );
+
+    new Setting(containerEl)
+      .setName("AgentMD executable")
+      .setDesc(
+        "Path to the agentmd CLI. Used for the 'Start backend' command. " +
+        "If agentmd is in your PATH, the default works. Otherwise, set the full path " +
+        "(e.g. /home/user/.local/bin/agentmd).",
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("agentmd")
+          .setValue(this.plugin.settings.agentmdPath)
+          .onChange(async (value) => {
+            this.plugin.settings.agentmdPath = value || "agentmd";
+            await this.plugin.saveSettings();
+          }),
+      );
   }
 }

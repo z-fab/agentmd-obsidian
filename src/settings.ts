@@ -9,6 +9,8 @@ export interface AgentmdSettings {
   notifications: "all" | "failures" | "off";
   /** Health poll interval in milliseconds. */
   pollIntervalMs: number;
+  /** Path to the agentmd executable (for starting the backend). */
+  agentmdPath: string;
 }
 
 export const DEFAULT_SETTINGS: AgentmdSettings = {
@@ -17,4 +19,5 @@ export const DEFAULT_SETTINGS: AgentmdSettings = {
   autoOpenOnRun: true,
   notifications: "all",
   pollIntervalMs: 15000,
+  agentmdPath: "agentmd",
 };
