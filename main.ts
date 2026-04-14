@@ -1,6 +1,8 @@
 import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { AgentmdClient } from "./src/client/agentmd-client";
+import { GlobalSSEConnection } from "./src/client/global-sse";
 import { BackendMonitor } from "./src/backend-monitor";
+import { BackendLifecycle } from "./src/backend-lifecycle";
 import { EventStore } from "./src/store/event-store";
 import { AgentsView } from "./src/views/agents-view";
 import { LiveView } from "./src/views/live-view";
@@ -10,59 +12,80 @@ import { AgentDetailView } from "./src/views/agent-detail-view";
 import { AgentmdSettingTab } from "./src/settings-tab";
 import { VIEW_TYPE_AGENTS, VIEW_TYPE_LIVE, VIEW_TYPE_EXEC_DETAIL, VIEW_TYPE_EXECUTIONS, VIEW_TYPE_AGENT_DETAIL } from "./src/views/constants";
 import { DEFAULT_SETTINGS, type AgentmdSettings } from "./src/settings";
-import type { ExecutionSummary } from "./src/types";
+import type { ExecutionSummary, GlobalSSEExecutionStarted, GlobalSSEExecutionCompleted, GlobalSSESchedulerChanged } from "./src/types";
 
 export default class AgentmdPlugin extends Plugin {
   private client!: AgentmdClient;
   private monitor!: BackendMonitor;
+  private globalSSE!: GlobalSSEConnection;
+  private lifecycle!: BackendLifecycle;
   private store!: EventStore;
   settings!: AgentmdSettings;
   private statusBarEl!: HTMLElement;
   private unsubMonitor: (() => void) | null = null;
-  /** Map of execution ID → SSE close function */
+  /** Map of execution ID -> SSE close function */
   private sseConnections = new Map<number, () => void>();
-  /** Timer for polling background (scheduler/watch) executions */
-  private bgPollTimer: ReturnType<typeof setInterval> | null = null;
-  /** Timer for periodic agent list refresh */
-  private agentRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   async onload(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 
     this.client = new AgentmdClient({ socketPath: this.settings.socketPath });
+    this.store = new EventStore();
+
+    // Backend monitor (SSE-driven, with fallback polling)
     this.monitor = new BackendMonitor({
       client: this.client,
       intervalMs: this.settings.pollIntervalMs,
     });
-    this.store = new EventStore();
+
+    // Backend lifecycle (start/stop)
+    this.lifecycle = new BackendLifecycle({
+      agentmdPath: this.settings.agentmdPath,
+      healthCheck: () => this.client.health(),
+      shutdown: () => this.client.shutdown(),
+    });
+
+    // Global SSE connection
+    this.globalSSE = new GlobalSSEConnection({
+      socketPath: this.settings.socketPath,
+      onEvent: (type, data) => this.handleGlobalSSEEvent(type, data),
+      onStateChanged: (state) => this.handleSSEStateChanged(state),
+    });
 
     // Status bar
     this.statusBarEl = this.addStatusBarItem();
     this.statusBarEl.addClass("agentmd-status-bar");
-    this.renderStatusBar(this.monitor.online);
-    this.unsubMonitor = this.monitor.subscribe((online) => {
-      this.renderStatusBar(online);
-      if (online) void this.refreshData();
+    this.renderStatusBar();
+    this.unsubMonitor = this.monitor.subscribe(() => this.renderStatusBar());
+
+    // Status bar click -> start or stop
+    this.statusBarEl.addEventListener("click", () => {
+      if (this.monitor.online) {
+        void this.stopBackend();
+      } else {
+        void this.startBackend();
+      }
     });
 
     // Register views
     this.registerView(VIEW_TYPE_AGENTS, (leaf) =>
       new AgentsView(leaf, this.store, {
         onRunAgent: (name, withFile) => this.runAgent(name, withFile),
-        onRefreshAgents: () => void this.refreshData(),
+        onRefreshAgents: () => void this.refreshAgents(),
         getCurrentFilePath: () => this.getCurrentFilePath(),
         onOpenAgentDetail: (name) => this.openAgentDetail(name),
         isOnline: () => this.monitor.online,
-        onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
+        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
+        onStartBackend: () => void this.startBackend(),
       }),
     );
     this.registerView(VIEW_TYPE_LIVE, (leaf) =>
-      new LiveView(leaf, {
+      new LiveView(leaf, this.store, {
         onOpenExecution: (id) => this.openExecutionDetail(id),
         onCancelExecution: (id) => this.cancelExecution(id),
+        onStartBackend: () => void this.startBackend(),
         isOnline: () => this.monitor.online,
-        onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
-        fetchRunning: () => this.client.listExecutions({ status: "running" }),
+        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
       }),
     );
     this.registerView(VIEW_TYPE_EXEC_DETAIL, (leaf) =>
@@ -82,10 +105,11 @@ export default class AgentmdPlugin extends Plugin {
     this.registerView(VIEW_TYPE_EXECUTIONS, (leaf) =>
       new ExecutionsView(leaf, this.store, {
         onOpenExecution: (id) => this.openExecutionDetail(id),
-        onRefreshExecutions: () => void this.refreshData(),
+        onRefreshExecutions: () => {},
         getExecutions: (params) => this.client.listExecutions(params),
         isOnline: () => this.monitor.online,
-        onOnlineChanged: (cb) => this.monitor.subscribe((_) => cb()),
+        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
+        onStartBackend: () => void this.startBackend(),
       }),
     );
     this.registerView(VIEW_TYPE_AGENT_DETAIL, (leaf) =>
@@ -137,12 +161,22 @@ export default class AgentmdPlugin extends Plugin {
         catch { new Notice("Failed to resume scheduler"); }
       },
     });
+    this.addCommand({
+      id: "start-backend",
+      name: "Start backend",
+      callback: () => void this.startBackend(),
+    });
+    this.addCommand({
+      id: "stop-backend",
+      name: "Stop backend",
+      callback: () => void this.stopBackend(),
+    });
 
     // Settings tab
     this.addSettingTab(new AgentmdSettingTab(this.app, this));
 
     // Ribbon icon
-    this.addRibbonIcon("cpu", "AgentMD", () => {
+    this.addRibbonIcon("bot", "AgentMD", () => {
       this.activateView(VIEW_TYPE_AGENTS);
     });
 
@@ -155,31 +189,125 @@ export default class AgentmdPlugin extends Plugin {
       });
     }
 
-    // Start monitoring
-    this.monitor.start();
-
-    // Background execution poller (picks up scheduler/watch-triggered runs)
-    this.bgPollTimer = setInterval(() => {
-      if (this.monitor.online) void this.detectBackgroundExecutions();
-    }, 5000);
-
-    // Periodic agent list refresh (picks up new/removed agent files)
-    this.agentRefreshTimer = setInterval(() => {
-      if (this.monitor.online) void this.refreshData();
-    }, 30000);
+    // Start global SSE connection
+    this.globalSSE.start();
   }
 
   onunload(): void {
+    this.globalSSE?.stop();
     this.monitor?.stop();
     this.unsubMonitor?.();
-    if (this.bgPollTimer != null) clearInterval(this.bgPollTimer);
-    if (this.agentRefreshTimer != null) clearInterval(this.agentRefreshTimer);
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
   }
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  // ---- Global SSE event handling ----
+
+  private handleGlobalSSEEvent(type: string, data: Record<string, unknown>): void {
+    if (type === "heartbeat") {
+      return;
+    }
+
+    if (type === "execution_started") {
+      const evt = data as unknown as GlobalSSEExecutionStarted;
+      if (!this.store.running.has(evt.execution_id) && !this.sseConnections.has(evt.execution_id)) {
+        this.store.startExecution(evt.execution_id, evt.agent_name, evt.trigger);
+        this.subscribeToExecution(evt.execution_id);
+      }
+      return;
+    }
+
+    if (type === "execution_completed") {
+      const evt = data as unknown as GlobalSSEExecutionCompleted;
+      if (this.store.running.has(evt.execution_id)) {
+        const running = this.store.running.get(evt.execution_id)!;
+        const summary: ExecutionSummary = {
+          id: evt.execution_id,
+          agent_id: evt.agent_name,
+          status: evt.status,
+          trigger: running.triggerSource,
+          started_at: new Date(running.startedAt).toISOString(),
+          duration_ms: evt.duration_ms,
+        };
+        this.store.completeExecution(evt.execution_id, summary);
+        this.sseConnections.get(evt.execution_id)?.();
+        this.sseConnections.delete(evt.execution_id);
+        this.notifyCompletion(summary);
+      }
+      return;
+    }
+
+    if (type === "agents_changed") {
+      void this.refreshAgents();
+      return;
+    }
+
+    if (type === "scheduler_changed") {
+      const evt = data as unknown as GlobalSSESchedulerChanged;
+      new Notice(`Scheduler ${evt.status}`);
+      return;
+    }
+  }
+
+  private handleSSEStateChanged(state: string): void {
+    if (state === "connected") {
+      this.monitor.deactivateFallback();
+      this.monitor.notifySSEConnected();
+      void this.syncOnReconnect();
+    } else if (state === "fallback") {
+      this.monitor.notifySSEDisconnected();
+      this.monitor.activateFallback();
+    } else if (state === "reconnecting") {
+      // Still trying - keep current online state
+    } else if (state === "offline") {
+      this.monitor.notifySSEDisconnected();
+    }
+  }
+
+  private async syncOnReconnect(): Promise<void> {
+    try {
+      const agents = await this.client.listAgents();
+      this.store.setAgents(agents);
+
+      const running = await this.client.listExecutions({ status: "running" });
+      const newIds = this.store.syncRunning(running);
+      for (const id of newIds) {
+        if (!this.sseConnections.has(id)) {
+          this.subscribeToExecution(id);
+        }
+      }
+    } catch {
+      // Backend may not be fully ready
+    }
+  }
+
+  // ---- Backend lifecycle ----
+
+  private async startBackend(): Promise<void> {
+    new Notice("Starting AgentMD…");
+    const result = await this.lifecycle.start();
+    if (result.success) {
+      new Notice("AgentMD started");
+      this.globalSSE.reconnectNow();
+    } else {
+      new Notice(`Failed to start AgentMD: ${result.error}`);
+    }
+  }
+
+  private async stopBackend(): Promise<void> {
+    const stopped = await this.lifecycle.stop();
+    if (stopped) {
+      this.globalSSE.stop();
+      this.monitor.notifySSEDisconnected();
+      new Notice("AgentMD stopped");
+      this.globalSSE.start();
+    } else {
+      new Notice("Failed to stop AgentMD");
+    }
   }
 
   // ---- Actions ----
@@ -196,7 +324,6 @@ export default class AgentmdPlugin extends Plugin {
         new Notice("No file is currently open.");
         return;
       }
-      // Resolve to absolute path
       const vaultPath = (this.app.vault.adapter as any).basePath as string;
       args.push(`${vaultPath}/${filePath}`);
     }
@@ -216,7 +343,7 @@ export default class AgentmdPlugin extends Plugin {
     try {
       await this.client.cancelExecution(id);
     } catch {
-      // May already be finished — ignore
+      // May already be finished
     }
   }
 
@@ -226,7 +353,6 @@ export default class AgentmdPlugin extends Plugin {
       (event) => {
         this.store.pushEvent(executionId, event);
         if (event.type === "complete") {
-          // Build a summary from the event data
           const summary: ExecutionSummary = {
             id: executionId,
             agent_id: this.store.running.get(executionId)?.agent ?? "unknown",
@@ -246,7 +372,6 @@ export default class AgentmdPlugin extends Plugin {
       },
       (err) => {
         console.error(`SSE error for execution ${executionId}:`, err);
-        // Execution may still be running — don't remove from store
       },
       () => {
         this.sseConnections.delete(executionId);
@@ -266,20 +391,14 @@ export default class AgentmdPlugin extends Plugin {
     new Notice(`${icon} ${summary.agent_id} ${summary.status} · ${duration} · ${cost}`);
   }
 
-  // ---- Background execution detection ----
+  // ---- Data ----
 
-  private async detectBackgroundExecutions(): Promise<void> {
+  private async refreshAgents(): Promise<void> {
     try {
-      const running = await this.client.listExecutions({ status: "running" });
-      for (const exec of running) {
-        if (!this.store.running.has(exec.id) && !this.sseConnections.has(exec.id)) {
-          // New background execution we don't know about
-          this.store.startExecution(exec.id, exec.agent_id, exec.trigger ?? "scheduler");
-          this.subscribeToExecution(exec.id);
-        }
-      }
+      const agents = await this.client.listAgents();
+      this.store.setAgents(agents);
     } catch {
-      // Backend may be offline — ignore
+      // Offline
     }
   }
 
@@ -338,28 +457,12 @@ export default class AgentmdPlugin extends Plugin {
       new Notice("No file is currently open.");
       return;
     }
-    // Simple prompt: pick from agent names
-    // Using Obsidian's SuggestModal would be ideal but requires a subclass.
-    // For Plan 2, use the first agent as a basic implementation.
-    // Plan 3 will add a proper agent suggester modal.
     if (this.store.agents.length === 0) {
       new Notice("No agents available.");
       return;
     }
-    // Show a notice listing agents — user triggers from AgentsView instead
     new Notice(`Use the Agents panel to run an agent with ${filePath.split("/").pop()}`);
     await this.activateView(VIEW_TYPE_AGENTS);
-  }
-
-  // ---- Data ----
-
-  private async refreshData(): Promise<void> {
-    try {
-      const agents = await this.client.listAgents();
-      this.store.setAgents(agents);
-    } catch {
-      // Offline — will retry on next poll
-    }
   }
 
   private getCurrentFilePath(): string | null {
@@ -369,13 +472,27 @@ export default class AgentmdPlugin extends Plugin {
 
   // ---- Status bar ----
 
-  private renderStatusBar(online: boolean): void {
+  private renderStatusBar(): void {
     this.statusBarEl.empty();
     const dot = this.statusBarEl.createSpan({ cls: "agentmd-status-dot" });
-    dot.setText("●");
     const label = this.statusBarEl.createSpan();
     label.setText("AgentMD");
-    this.statusBarEl.toggleClass("agentmd-status-online", online);
-    this.statusBarEl.toggleClass("agentmd-status-offline", !online);
+
+    const mode = this.monitor.mode;
+    const online = this.monitor.online;
+
+    if (mode === "sse" && online) {
+      dot.setText("●");
+      this.statusBarEl.removeClass("agentmd-status-offline", "agentmd-status-fallback");
+      this.statusBarEl.addClass("agentmd-status-online");
+    } else if (mode === "fallback" && online) {
+      dot.setText("●");
+      this.statusBarEl.removeClass("agentmd-status-offline", "agentmd-status-online");
+      this.statusBarEl.addClass("agentmd-status-fallback");
+    } else {
+      dot.setText("○");
+      this.statusBarEl.removeClass("agentmd-status-online", "agentmd-status-fallback");
+      this.statusBarEl.addClass("agentmd-status-offline");
+    }
   }
 }
