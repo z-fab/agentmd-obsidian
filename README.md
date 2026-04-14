@@ -24,7 +24,9 @@ This plugin connects Obsidian to the [agentmd](https://github.com/z-fab/agentmd)
 - **Browse execution history** with status, agent, and period filters
 - **Agent dashboard** — stats, recent runs, configuration, and quick actions
 - **Scheduler controls** — pause/resume from the command palette
-- **Status bar** — pulsing green dot shows backend connectivity at a glance
+- **Start/Stop backend** — start or stop agentmd from the command palette or status bar
+- **Real-time SSE** — global event stream replaces polling for instant updates
+- **Status bar** — green pulsing dot = SSE connected, amber = polling fallback, gray = offline. Click to start/stop.
 
 ## Screenshots
 
@@ -105,6 +107,8 @@ The status bar will show **● AgentMD** with a pulsing green dot when connected
 | `Run current file through agent…` | Pick an agent and run with the active file |
 | `Pause scheduler` | Pause all scheduled agent runs |
 | `Resume scheduler` | Resume scheduled agent runs |
+| `Start backend` | Start the agentmd daemon |
+| `Stop backend` | Gracefully stop the agentmd backend |
 
 ### Settings
 
@@ -114,7 +118,8 @@ The status bar will show **● AgentMD** with a pulsing green dot when connected
 | Agents directory | `~/agentmd/agents` | Path to agent `.md` files (for "Open source") |
 | Auto-open on run | On | Open execution detail tab when starting a run |
 | Notifications | All runs | Notice on completion: All / Failures only / Off |
-| Poll interval | 15s | Health check interval (10–120s) |
+| Poll interval | 15s | Fallback polling interval when SSE is unavailable (10–120s) |
+| AgentMD executable | `agentmd` | Path to the agentmd CLI for start command |
 
 ### Vault as workspace
 
@@ -130,20 +135,28 @@ If the workspace is elsewhere, everything still works — "Open source" will rev
 The plugin is 100% API-driven. Every view fetches data from the agentmd HTTP backend (source of truth). No data is cached locally except for real-time SSE streaming during active executions.
 
 ```
-┌──────────────────────────────────┐
-│         Obsidian Plugin          │
-│                                  │
-│  AgentsView ─┐                   │
-│  LiveView ───┤── AgentmdClient ──┼── Unix Socket ── agentmd backend
-│  ExecView ───┤   (HTTP + SSE)    │
-│  DetailView ─┘                   │
-│                                  │
-│  BackendMonitor (health polling) │
-│  Status Bar (● AgentMD)          │
-└──────────────────────────────────┘
+┌──────────────────────────────────────┐
+│           Obsidian Plugin            │
+│                                      │
+│  GlobalSSEConnection ─ /events/stream ─ agentmd backend
+│    ├─ heartbeat → online status      │
+│    ├─ execution_* → EventStore       │
+│    ├─ agents_changed → refresh       │
+│    └─ scheduler_changed → notify     │
+│                                      │
+│  Per-execution SSE (detail view)     │
+│    └─ /executions/{id}/stream        │
+│                                      │
+│  BackendLifecycle                    │
+│    ├─ start → execFile agentmd       │
+│    └─ stop → POST /shutdown          │
+│                                      │
+│  BackendMonitor (SSE + fallback)     │
+│  Status Bar (● AgentMD)              │
+└──────────────────────────────────────┘
 ```
 
-- **Transport**: Unix domain socket (no ports, no API keys, no firewall config)
+- **Transport**: Unix domain socket + SSE (global event stream for real-time, per-execution for streaming logs)
 - **Protocol**: REST (JSON) + SSE (Server-Sent Events for live streaming)
 - **Views**: Vanilla DOM `ItemView` subclasses (no UI framework)
 - **State**: API-first — views poll or fetch on demand
@@ -177,6 +190,7 @@ src/
   client/
     agentmd-client.ts            HTTP client over Unix socket
     sse-parser.ts                SSE text stream parser
+    global-sse.ts                Global SSE connection manager
   store/
     event-store.ts               Reactive state (agents, running, history)
   views/
@@ -187,9 +201,28 @@ src/
     execution-detail-view.ts     Main tab: execution log
   settings.ts                   Settings interface + defaults
   settings-tab.ts                Settings UI
-  backend-monitor.ts             Health polling + status bar
+  backend-monitor.ts             SSE-driven health monitoring with fallback
+  backend-lifecycle.ts           Start/stop backend from UI
   ui/format.ts                   Formatting utilities
 ```
+
+## Troubleshooting
+
+### Start button doesn't work
+
+The plugin runs `agentmd start -d` to launch the backend. If the `agentmd` command isn't in Obsidian's PATH:
+
+1. Find where agentmd is installed: `which agentmd`
+2. In Obsidian: **Settings → AgentMD → AgentMD executable**
+3. Set the full path (e.g., `/home/user/.local/bin/agentmd` or `/opt/homebrew/bin/agentmd`)
+
+### Status bar shows amber instead of green
+
+Amber means the plugin is connected via polling fallback instead of the real-time SSE stream. This can happen if:
+- The backend version is older than v0.11.0 (SSE global not available)
+- The SSE connection was interrupted and hasn't recovered yet
+
+The plugin will keep trying to reconnect to SSE automatically.
 
 ## Roadmap
 
