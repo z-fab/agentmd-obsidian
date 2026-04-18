@@ -328,13 +328,16 @@ export class ExecutionDetailView extends ItemView {
     const msg = event.data.content ?? event.data.message ?? "";
 
     if (event.type === "tool_call") {
-      const line = container.createDiv({ cls: "log-line" });
       if (event.data.tools?.length) {
-        line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${event.data.tools[0].name}` });
-        if (event.data.tools[0].args) {
-          line.createSpan({ cls: "log-args", text: ` ${event.data.tools[0].args}` });
+        for (const tool of event.data.tools) {
+          const line = container.createDiv({ cls: "log-line" });
+          line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${tool.name}` });
+          if (tool.args) {
+            line.createSpan({ cls: "log-args", text: ` ${tool.args}` });
+          }
         }
       } else if (msg) {
+        const line = container.createDiv({ cls: "log-line" });
         line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${msg}` });
       }
     } else if (event.type === "tool_result") {
