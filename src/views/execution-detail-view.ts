@@ -316,7 +316,13 @@ export class ExecutionDetailView extends ItemView {
   }
 
   private countToolCalls(events: ParsedSSEEvent[]): number {
-    return events.filter((e) => e.type === "tool_call").length;
+    let count = 0;
+    for (const e of events) {
+      if (e.type === "tool_call") {
+        count += e.data.tools?.length ?? 1;
+      }
+    }
+    return count;
   }
 
   /**
@@ -340,7 +346,7 @@ export class ExecutionDetailView extends ItemView {
         const line = container.createDiv({ cls: "log-line" });
         line.createSpan({ cls: "log-tool-call", text: `🔧 >> ${msg}` });
       }
-    } else if (event.type === "tool_result") {
+    } else if (event.type === "tool_result" || event.type === "tool_response") {
       const line = container.createDiv({ cls: "log-line" });
       if (event.data.tool_name) {
         line.createSpan({ cls: "log-tool-result", text: `📎 << ${event.data.tool_name}` });
