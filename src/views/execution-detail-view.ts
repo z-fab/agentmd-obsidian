@@ -205,11 +205,24 @@ export class ExecutionDetailView extends ItemView {
     const snapshot = this.store.getCompletedSnapshot(exec.id);
 
     // Convert API messages to ParsedSSEEvent format (if no live snapshot)
-    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? (apiMessages ?? []).map((m) => ({
-      type: m.event_type,
-      id: String(m.id),
-      data: { event_type: m.event_type, message: m.message },
-    }));
+    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? (apiMessages ?? []).map((m) => {
+      const data: Record<string, unknown> = { event_type: m.event_type, message: m.message };
+      // Parse "tool_name — result" format from DB replay
+      if ((m.event_type === "tool_response" || m.event_type === "tool_result") && m.message.includes(" — ")) {
+        const sep = m.message.indexOf(" — ");
+        data.tool_name = m.message.slice(0, sep);
+        data.message = m.message.slice(sep + 3);
+      }
+      // Parse "tool_name — args: {...}" format for tool_call from DB replay
+      if (m.event_type === "tool_call" && m.message.includes(" — args: ")) {
+        const sep = m.message.indexOf(" — args: ");
+        const toolName = m.message.slice(0, sep);
+        const argsStr = m.message.slice(sep + 9);
+        data.tools = [{ name: toolName, args: argsStr }];
+        data.message = m.message;
+      }
+      return { type: m.event_type, id: String(m.id), data } as ParsedSSEEvent;
+    });
 
     // Extract final answer from snapshot or from API messages
     const finalAnswerFromLog = logEvents
