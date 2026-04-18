@@ -89,7 +89,7 @@ export interface SSEEventData {
 }
 
 export interface ParsedSSEEvent {
-  /** SSE event type: message, ai, tool_call, tool_result, meta, final_answer, complete */
+  /** SSE event type: message, ai, tool_call, tool_result/tool_response, meta, final_answer, complete, system, human */
   type: string;
   /** Sequence ID from backend — used for dedup on reconnect */
   id: string;
