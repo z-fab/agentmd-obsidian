@@ -179,8 +179,13 @@ export class PanelView extends ItemView {
 
   private renderOffline(root: HTMLElement): void {
     const w = root.createDiv({ cls: "agentmd-offline-state" });
-    w.createDiv({ cls: "agentmd-offline-icon", text: "⚠" });
-    w.createDiv({ cls: "agentmd-offline-title", text: "Backend offline" });
+    const icon = w.createDiv({ cls: "agentmd-offline-icon" });
+    setIcon(icon, "bot-off");
+    w.createDiv({ cls: "agentmd-offline-title", text: "Agentmd backend offline" });
+    w.createDiv({
+      cls: "agentmd-offline-desc",
+      text: "The Agentmd backend isn't running. If it's already installed, start it with the button below — or run “agentmd start” in a terminal.",
+    });
     const btn = w.createEl("button", { cls: "agentmd-btn primary agentmd-offline-start-btn", text: "▶ Start Agentmd" });
     btn.addEventListener("click", async () => {
       btn.setText("Starting…");
@@ -188,6 +193,15 @@ export class PanelView extends ItemView {
       const ok = await this.actions.onStartBackend();
       if (!ok) { btn.setText("▶ Start Agentmd"); btn.disabled = false; }
     });
+    const help = w.createDiv({ cls: "agentmd-offline-help" });
+    help.createSpan({ text: "Don't have it yet? " });
+    const link = help.createEl("a", {
+      cls: "agentmd-offline-link",
+      text: "Get agentmd",
+      href: "https://github.com/z-fab/agentmd",
+    });
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener");
   }
 
   private updateTick(screen: Screen): void {

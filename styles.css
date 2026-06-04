@@ -721,15 +721,36 @@
   text-align: center;
 }
 .agentmd-offline-icon {
-  font-size: 32px;
   color: var(--text-faint);
   margin-bottom: 12px;
+}
+.agentmd-offline-icon svg {
+  width: 42px;
+  height: 42px;
 }
 .agentmd-offline-title {
   font-size: var(--font-ui-medium);
   font-weight: var(--font-semibold);
   color: var(--text-muted);
   margin-bottom: 8px;
+}
+.agentmd-offline-desc {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  max-width: 300px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.agentmd-offline-help {
+  margin-top: 16px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+.agentmd-offline-link {
+  color: var(--text-accent);
+}
+.agentmd-offline-link:hover {
+  text-decoration: underline;
 }
 .agentmd-offline-cmd {
   font-size: var(--font-ui-small);
