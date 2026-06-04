@@ -68,6 +68,22 @@ export class AgentmdSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Accent color")
+      .setDesc("Highlight color for active tabs, primary buttons, and selected filters.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("#ffffff", "White")
+          .addOption("#4EA92E", "Green")
+          .addOption("#8b5cf6", "Purple")
+          .setValue(this.plugin.settings.accentColor)
+          .onChange(async (value) => {
+            this.plugin.settings.accentColor = value;
+            await this.plugin.saveSettings();
+            this.plugin.applyAccent();
+          }),
+      );
+
+    new Setting(containerEl)
       .setName("Health poll interval")
       .setDesc("Seconds between health checks when idle (10–120).")
       .addText((text) =>

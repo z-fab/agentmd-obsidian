@@ -134,6 +134,9 @@ export default class AgentmdPlugin extends Plugin {
       if (!this.app.workspace.getLeavesOfType(VIEW_TYPE_PANEL).length) void this.activatePanel();
     });
 
+    // Apply accent color CSS variable
+    this.applyAccent();
+
     // Start global SSE connection
     this.globalSSE.start();
   }
@@ -144,6 +147,11 @@ export default class AgentmdPlugin extends Plugin {
     this.unsubMonitor?.();
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
+    document.body.style.removeProperty("--agentmd-accent");
+  }
+
+  applyAccent(): void {
+    document.body.style.setProperty("--agentmd-accent", this.settings.accentColor || "#ffffff");
   }
 
   async saveSettings(): Promise<void> {

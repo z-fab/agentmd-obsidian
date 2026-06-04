@@ -11,6 +11,8 @@ export interface AgentmdSettings {
   pollIntervalMs: number;
   /** Path to the agentmd executable (for starting the backend). */
   agentmdPath: string;
+  /** UI accent color applied via --agentmd-accent CSS variable (tabs, primary buttons, active filters). */
+  accentColor: string;
 }
 
 export const DEFAULT_SETTINGS: AgentmdSettings = {
@@ -20,4 +22,5 @@ export const DEFAULT_SETTINGS: AgentmdSettings = {
   notifications: "all",
   pollIntervalMs: 15000,
   agentmdPath: "agentmd",
+  accentColor: "#ffffff",
 };

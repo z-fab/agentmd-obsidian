@@ -93,7 +93,7 @@
 }
 .agentmd-tab.active {
   color: var(--text-normal);
-  border-bottom-color: var(--text-accent, #8b5cf6);
+  border-bottom-color: var(--agentmd-accent, #8b5cf6);
   font-weight: var(--font-semibold);
   background-color: transparent !important;
   box-shadow: none !important;
@@ -153,11 +153,11 @@
   background: var(--background-modifier-hover);
 }
 .agentmd-btn.primary {
-  background: rgba(139,92,246,0.2);
-  border-color: rgba(139,92,246,0.4);
+  background: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 20%, transparent);
+  border-color: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 45%, transparent);
 }
 .agentmd-btn.primary:hover {
-  background: rgba(139,92,246,0.3);
+  background: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 30%, transparent);
 }
 .agentmd-btn:disabled {
   opacity: 0.4;
@@ -469,7 +469,7 @@
   font-weight: var(--font-semibold);
 }
 .agentmd-exec-detail .exec-log .log-tool-result {
-  color: #8b5cf6;
+  color: var(--agentmd-accent, #8b5cf6);
 }
 .agentmd-exec-detail .exec-log .log-args,
 .agentmd-exec-detail .exec-log .log-result-content {
@@ -559,9 +559,9 @@
 }
 .agentmd-seg-btn:hover { background: var(--background-modifier-hover); }
 .agentmd-seg-btn.active {
-  background: rgba(139,92,246,0.2);
-  color: #8b5cf6;
-  border-color: rgba(139,92,246,0.4);
+  background: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 20%, transparent);
+  color: var(--agentmd-accent, #8b5cf6);
+  border-color: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 45%, transparent);
   font-weight: var(--font-semibold);
 }
 .agentmd-filter-select {
