@@ -30,6 +30,7 @@ export class HistoryScreen {
   private readonly pageSize = 30;
   private loading = false;
   private loaded = false;
+  private loadSeq = 0;
   private container: HTMLElement | null = null;
 
   constructor(private ctx: PanelContext) {}
@@ -43,6 +44,7 @@ export class HistoryScreen {
   }
 
   private async load(): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loading = true;
     this.paint();
     try {
@@ -53,12 +55,14 @@ export class HistoryScreen {
       if (this.statusFilter !== "all") params.status = this.statusFilter;
       if (this.agentFilter !== "all") params.agent = this.agentFilter;
       const results = await this.ctx.actions.getExecutions(params);
+      if (seq !== this.loadSeq) return;
       if (this.offset === 0) {
         this.executions = results;
       } else {
         this.executions = [...this.executions, ...results];
       }
     } catch {
+      if (seq !== this.loadSeq) return;
       // keep going on error
     }
     this.loaded = true;
