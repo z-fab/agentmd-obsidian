@@ -386,7 +386,7 @@ export default class AgentmdPlugin extends Plugin {
   private async openSourceFile(agentName: string): Promise<void> {
     let abs: string | null = null;
     try { abs = (await this.client.getAgent(agentName)).source_path ?? null; } catch { /* offline */ }
-    if (!abs) abs = `${this.settings.agentsDir}/${agentName}.md`;
+    if (!abs) { new Notice("Source file path unavailable (is the backend running?)."); return; }
     const vaultPath = (this.app.vault.adapter as any).basePath as string;
     if (abs.startsWith(vaultPath)) {
       const relative = abs.slice(vaultPath.length + 1);

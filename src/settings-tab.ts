@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type AgentmdPlugin from "../main";
 import type { AgentmdSettings } from "./settings";
 
@@ -28,16 +28,17 @@ export class AgentmdSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Agents directory")
-      .setDesc("Absolute path to the directory containing agent .md files. Used for 'Open source file'.")
-      .addText((text) =>
-        text
-          .setPlaceholder("/path/to/agents")
-          .setValue(this.plugin.settings.agentsDir)
-          .onChange(async (value) => {
-            this.plugin.settings.agentsDir = value;
-            await this.plugin.saveSettings();
-          }),
+      .setName("Agentmd config file")
+      .setDesc("Workspace, agents directory, default model, and other runtime settings live in agentmd's config.yaml. Open it to edit them.")
+      .addButton((btn) =>
+        btn.setButtonText("Open config file").onClick(async () => {
+          const cfgHome = process.env?.XDG_CONFIG_HOME || `${process.env?.HOME ?? ""}/.config`;
+          const path = `${cfgHome}/agentmd/config.yaml`;
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const { shell } = require("electron") as { shell: { openPath: (p: string) => Promise<string> } };
+          const err = await shell.openPath(path);
+          if (err) new Notice(`Could not open config file: ${path}`);
+        }),
       );
 
     new Setting(containerEl)
