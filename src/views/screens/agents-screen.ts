@@ -1,9 +1,13 @@
 import type { PanelContext } from "../panel-view";
-import { createCard, createEmojiBox, createChip, createStopPill } from "../../ui/cards";
+import { createCard, createEmojiBox, createChip, createStopPill, createEmptyState } from "../../ui/cards";
 
 export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): void {
   if (ctx.store.agents.length === 0) {
-    container.createDiv({ cls: "agentmd-empty", text: "No agents found. Is the backend running?" });
+    createEmptyState(container, {
+      icon: "bot",
+      title: "No agents yet",
+      desc: "Add an agent .md file to your agents directory, then press Refresh below.",
+    });
     return;
   }
 

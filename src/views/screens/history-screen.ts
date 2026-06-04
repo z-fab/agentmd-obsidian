@@ -1,6 +1,6 @@
 import type { PanelContext } from "../panel-view";
 import type { ExecutionSummary } from "../../types";
-import { createCard, createEmojiBox } from "../../ui/cards";
+import { createCard, createEmojiBox, createEmptyState } from "../../ui/cards";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "../../ui/format";
 
 type StatusFilter = "all" | "success" | "failed" | "aborted";
@@ -94,7 +94,7 @@ export class HistoryScreen {
     const filtered = this.filterByPeriod(this.executions);
 
     if (filtered.length === 0) {
-      container.createDiv({ cls: "agentmd-empty", text: "No executions found." });
+      this.renderEmpty(container);
       return;
     }
 
@@ -193,6 +193,27 @@ export class HistoryScreen {
     if (exec.error) {
       const errorText = exec.error.length > 30 ? exec.error.slice(0, 30) + "…" : exec.error;
       meta.createSpan({ cls: "exec-row-error-inline", text: errorText });
+    }
+  }
+
+  private renderEmpty(container: HTMLElement): void {
+    // executions = what the API returned for the current status/agent filters;
+    // period is applied client-side, so an empty `filtered` can mean three things.
+    if (this.executions.length === 0) {
+      const noFilters = this.statusFilter === "all" && this.agentFilter === "all";
+      createEmptyState(container, {
+        icon: "history",
+        title: noFilters ? "No executions yet" : "No matching executions",
+        desc: noFilters
+          ? "When you run an agent, its execution history will show up here."
+          : "No executions match the current status or agent filter. Try clearing them.",
+      });
+    } else {
+      createEmptyState(container, {
+        icon: "history",
+        title: "Nothing in this period",
+        desc: "No executions in the selected period. Try a wider range (7d, 30d, or All).",
+      });
     }
   }
 

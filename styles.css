@@ -711,6 +711,37 @@
 }
 
 /* ---------- Offline state (replaces all content when backend is down) ---------- */
+/* ---------- Empty states (tabs with no content) ---------- */
+.agentmd-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+.agentmd-empty-icon {
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+.agentmd-empty-icon svg {
+  width: 34px;
+  height: 34px;
+}
+.agentmd-empty-title {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.agentmd-empty-desc {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  max-width: 280px;
+  line-height: 1.5;
+}
+
 .agentmd-offline-state {
   display: flex;
   flex-direction: column;

@@ -1,10 +1,14 @@
 import type { PanelContext } from "../panel-view";
-import { createCard, createEmojiBox, createStopPill } from "../../ui/cards";
+import { createCard, createEmojiBox, createStopPill, createEmptyState } from "../../ui/cards";
 import { formatDuration, formatTokens, formatCost } from "../../ui/format";
 
 export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): void {
   if (ctx.store.running.size === 0) {
-    container.createDiv({ cls: "agentmd-empty", text: "No running executions." });
+    createEmptyState(container, {
+      icon: "activity",
+      title: "No running executions",
+      desc: "Runs you start appear here in real time. Open the Agents tab and press ▶ to run one.",
+    });
     return;
   }
 

@@ -1,3 +1,18 @@
+import { setIcon } from "obsidian";
+
+/** Render a friendly empty state: a Lucide icon, a title, and an optional description. */
+export function createEmptyState(
+  parent: HTMLElement,
+  opts: { icon: string; title: string; desc?: string },
+): HTMLElement {
+  const wrap = parent.createDiv({ cls: "agentmd-empty-state" });
+  const icon = wrap.createDiv({ cls: "agentmd-empty-icon" });
+  setIcon(icon, opts.icon);
+  wrap.createDiv({ cls: "agentmd-empty-title", text: opts.title });
+  if (opts.desc) wrap.createDiv({ cls: "agentmd-empty-desc", text: opts.desc });
+  return wrap;
+}
+
 /** Create the elevated card container. Add `running` to apply the spinning border. */
 export function createCard(parent: HTMLElement, opts?: { running?: boolean }): HTMLElement {
   const card = parent.createDiv({ cls: "agentmd-card" });
