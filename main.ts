@@ -1,16 +1,12 @@
-import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import { AgentmdClient } from "./src/client/agentmd-client";
 import { GlobalSSEConnection } from "./src/client/global-sse";
 import { BackendMonitor } from "./src/backend-monitor";
 import { BackendLifecycle } from "./src/backend-lifecycle";
 import { EventStore } from "./src/store/event-store";
-import { AgentsView } from "./src/views/agents-view";
-import { LiveView } from "./src/views/live-view";
-import { ExecutionDetailView } from "./src/views/execution-detail-view";
-import { ExecutionsView } from "./src/views/executions-view";
-import { AgentDetailView } from "./src/views/agent-detail-view";
+import { PanelView } from "./src/views/panel-view";
 import { AgentmdSettingTab } from "./src/settings-tab";
-import { VIEW_TYPE_AGENTS, VIEW_TYPE_LIVE, VIEW_TYPE_EXEC_DETAIL, VIEW_TYPE_EXECUTIONS, VIEW_TYPE_AGENT_DETAIL } from "./src/views/constants";
+import { VIEW_TYPE_PANEL } from "./src/views/constants";
 import { DEFAULT_SETTINGS, type AgentmdSettings } from "./src/settings";
 import type { ExecutionSummary, GlobalSSEExecutionStarted, GlobalSSEExecutionCompleted, GlobalSSESchedulerChanged } from "./src/types";
 
@@ -67,83 +63,34 @@ export default class AgentmdPlugin extends Plugin {
       }
     });
 
-    // Register views
-    this.registerView(VIEW_TYPE_AGENTS, (leaf) =>
-      new AgentsView(leaf, this.store, {
+    // Register the single panel view
+    this.registerView(VIEW_TYPE_PANEL, (leaf) =>
+      new PanelView(leaf, this.store, {
         onRunAgent: (name, withFile) => this.runAgent(name, withFile),
-        onRefreshAgents: () => void this.refreshAgents(),
-        getCurrentFilePath: () => this.getCurrentFilePath(),
-        onOpenAgentDetail: (name) => this.openAgentDetail(name),
-        isOnline: () => this.monitor.online,
-        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
-        onStartBackend: () => this.startBackend(),
-      }),
-    );
-    this.registerView(VIEW_TYPE_LIVE, (leaf) =>
-      new LiveView(leaf, this.store, {
-        onOpenExecution: (id) => this.openExecutionDetail(id),
         onCancelExecution: (id) => this.cancelExecution(id),
-        onStartBackend: () => this.startBackend(),
-        isOnline: () => this.monitor.online,
-        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
-      }),
-    );
-    this.registerView(VIEW_TYPE_EXEC_DETAIL, (leaf) =>
-      new ExecutionDetailView(leaf, this.store, {
-        onCancel: (id) => this.cancelExecution(id),
-        onRerun: (name) => this.runAgent(name, false),
-        fetchExecution: async (id) => {
-          try {
-            return await this.client.getExecution(id);
-          } catch {
-            return null;
-          }
-        },
-        fetchExecutionMessages: (id) => this.client.getExecutionMessages(id),
-      }),
-    );
-    this.registerView(VIEW_TYPE_EXECUTIONS, (leaf) =>
-      new ExecutionsView(leaf, this.store, {
-        onOpenExecution: (id) => this.openExecutionDetail(id),
-        onRefreshExecutions: () => {},
-        getExecutions: (params) => this.client.listExecutions(params),
-        isOnline: () => this.monitor.online,
-        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
-        onStartBackend: () => this.startBackend(),
-      }),
-    );
-    this.registerView(VIEW_TYPE_AGENT_DETAIL, (leaf) =>
-      new AgentDetailView(leaf, this.store, {
-        onRunAgent: (name, withFile) => this.runAgent(name, withFile),
+        onRefreshAgents: () => void this.refreshAgents(),
         onOpenSourceFile: (name) => this.openSourceFile(name),
-        onOpenExecution: (id) => this.openExecutionDetail(id),
-        onOpenExecutions: (name) => this.openExecutionsForAgent(name),
+        onRerun: (name) => this.runAgent(name, false),
         getCurrentFilePath: () => this.getCurrentFilePath(),
+        isOnline: () => this.monitor.online,
+        onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
+        onStartBackend: () => this.startBackend(),
         fetchAgentDetail: (name) => this.client.getAgent(name),
         fetchAgentRuns: (name, limit) => this.client.getAgentRuns(name, limit),
+        fetchExecution: async (id) => { try { return await this.client.getExecution(id); } catch { return null; } },
+        fetchExecutionMessages: (id) => this.client.getExecutionMessages(id),
+        getExecutions: (p) => this.client.listExecutions(p),
       }),
     );
 
     // Commands
-    this.addCommand({
-      id: "open-agents",
-      name: "Open Agents panel",
-      callback: () => this.activateView(VIEW_TYPE_AGENTS),
-    });
-    this.addCommand({
-      id: "open-live",
-      name: "Open Live panel",
-      callback: () => this.activateView(VIEW_TYPE_LIVE),
-    });
+    this.addCommand({ id: "open-panel", name: "Open AgentMD panel", callback: () => void this.activatePanel() });
+    this.addCommand({ id: "open-live", name: "Open Live", callback: () => void this.activatePanel("live") });
+    this.addCommand({ id: "open-history", name: "Open History", callback: () => void this.activatePanel("history") });
     this.addCommand({
       id: "run-with-file",
       name: "Run current file through agent…",
       callback: () => this.promptRunWithFile(),
-    });
-    this.addCommand({
-      id: "open-executions",
-      name: "Open Executions panel",
-      callback: () => this.activateView(VIEW_TYPE_EXECUTIONS),
     });
     this.addCommand({
       id: "pause-scheduler",
@@ -176,18 +123,16 @@ export default class AgentmdPlugin extends Plugin {
     this.addSettingTab(new AgentmdSettingTab(this.app, this));
 
     // Ribbon icon
-    this.addRibbonIcon("bot", "AgentMD", () => {
-      this.activateView(VIEW_TYPE_AGENTS);
-    });
+    this.addRibbonIcon("bot", "AgentMD", () => void this.activatePanel());
 
-    // Default layout on first install
-    if (!this.app.workspace.getLeavesOfType(VIEW_TYPE_AGENTS).length) {
-      this.app.workspace.onLayoutReady(() => {
-        void this.activateView(VIEW_TYPE_AGENTS);
-        void this.activateView(VIEW_TYPE_LIVE);
-        void this.activateView(VIEW_TYPE_EXECUTIONS);
-      });
-    }
+    // Default layout on first install + migration of old leaves
+    this.app.workspace.onLayoutReady(() => {
+      // Migrate: detach any leaves from the old per-panel view types.
+      for (const t of ["agentmd-agents", "agentmd-live", "agentmd-executions", "agentmd-agent-detail", "agentmd-exec-detail"]) {
+        this.app.workspace.getLeavesOfType(t).forEach((l) => l.detach());
+      }
+      if (!this.app.workspace.getLeavesOfType(VIEW_TYPE_PANEL).length) void this.activatePanel();
+    });
 
     // Start global SSE connection
     this.globalSSE.start();
@@ -412,51 +357,46 @@ export default class AgentmdPlugin extends Plugin {
 
   // ---- View management ----
 
+  private async activatePanel(tab?: "agents" | "live" | "history"): Promise<PanelView | null> {
+    let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_PANEL)[0];
+    if (!leaf) {
+      const right = this.app.workspace.getRightLeaf(false);
+      if (!right) return null;
+      leaf = right;
+      await leaf.setViewState({ type: VIEW_TYPE_PANEL, active: true });
+    }
+    this.app.workspace.revealLeaf(leaf);
+    const view = leaf.view as PanelView;
+    if (tab) view.goToTab(tab);
+    return view;
+  }
+
   private async openExecutionDetail(executionId: number): Promise<void> {
-    const leaf = this.app.workspace.getLeaf("tab");
-    await leaf.setViewState({ type: VIEW_TYPE_EXEC_DETAIL, active: true });
-    const view = leaf.view as ExecutionDetailView;
-    view.setExecutionId(executionId);
+    (await this.activatePanel())?.openExecution(executionId);
   }
 
   private async openAgentDetail(name: string): Promise<void> {
-    const leaf = this.app.workspace.getLeaf("tab");
-    await leaf.setViewState({ type: VIEW_TYPE_AGENT_DETAIL, active: true });
-    const view = leaf.view as AgentDetailView;
-    await view.setAgent(name);
+    (await this.activatePanel())?.openAgent(name);
   }
 
-  private openSourceFile(agentName: string): void {
-    const filePath = `${this.settings.agentsDir}/${agentName}.md`;
+  private async openSourceFile(agentName: string): Promise<void> {
+    let abs: string | null = null;
+    try { abs = (await this.client.getAgent(agentName)).source_path ?? null; } catch { /* offline */ }
+    if (!abs) abs = `${this.settings.agentsDir}/${agentName}.md`;
     const vaultPath = (this.app.vault.adapter as any).basePath as string;
-    if (filePath.startsWith(vaultPath)) {
-      const relative = filePath.slice(vaultPath.length + 1);
+    if (abs.startsWith(vaultPath)) {
+      const relative = abs.slice(vaultPath.length + 1);
       const file = this.app.vault.getAbstractFileByPath(relative);
-      if (file) {
-        void this.app.workspace.getLeaf("tab").openFile(file as any);
-        return;
-      }
+      if (file) { void this.app.workspace.getLeaf("tab").openFile(file as any); return; }
     }
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { shell } = require("electron") as { shell: { showItemInFolder: (path: string) => void } };
-    shell.showItemInFolder(filePath);
-    new Notice(`Source file revealed in file manager: ${agentName}.md`);
+    shell.showItemInFolder(abs);
+    new Notice(`Source revealed: ${agentName}.md`);
   }
 
   private async openExecutionsForAgent(agentName: string): Promise<void> {
-    await this.activateView(VIEW_TYPE_EXECUTIONS);
-  }
-
-  private async activateView(viewType: string): Promise<void> {
-    const existing = this.app.workspace.getLeavesOfType(viewType);
-    if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
-      return;
-    }
-    const leaf = this.app.workspace.getRightLeaf(false);
-    if (leaf) {
-      await leaf.setViewState({ type: viewType, active: true });
-    }
+    await this.activatePanel("history");
   }
 
   private async promptRunWithFile(): Promise<void> {
@@ -470,7 +410,7 @@ export default class AgentmdPlugin extends Plugin {
       return;
     }
     new Notice(`Use the Agents panel to run an agent with ${filePath.split("/").pop()}`);
-    await this.activateView(VIEW_TYPE_AGENTS);
+    await this.activatePanel("agents");
   }
 
   private getCurrentFilePath(): string | null {
