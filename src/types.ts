@@ -31,6 +31,7 @@ export interface InfoResponse {
 export interface AgentSummary {
   name: string;
   description: string;
+  icon?: string | null;
   enabled: boolean;
   trigger_type: string;
   model_provider: string | null;
@@ -42,6 +43,14 @@ export interface AgentDetail extends AgentSummary {
   next_run: string | null;
   history: string;
   settings: Record<string, unknown>;
+  paths?: Record<string, string>;
+  custom_tools?: string[];
+  mcp?: string[];
+  skills?: string[];
+  trigger_every?: string | null;
+  trigger_cron?: string | null;
+  trigger_paths?: string[];
+  source_path?: string | null;
 }
 
 // ---------- Executions ----------
@@ -89,7 +98,7 @@ export interface SSEEventData {
 }
 
 export interface ParsedSSEEvent {
-  /** SSE event type: message, ai, tool_call, tool_result/tool_response, meta, final_answer, complete, system, human */
+  /** SSE event type. Canonical: message, ai, tool_call, tool_result, meta, final_answer, complete, system, human. (`tool_response` is legacy DB replay only.) */
   type: string;
   /** Sequence ID from backend — used for dedup on reconnect */
   id: string;
