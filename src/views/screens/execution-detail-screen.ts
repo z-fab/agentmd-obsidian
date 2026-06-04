@@ -14,6 +14,7 @@ export class ExecutionDetailScreen {
   constructor(private ctx: PanelContext) {}
 
   render(container: HTMLElement, id: number): void {
+    if (id !== this.id) this.verifyCounter = 0;
     this.container = container;
     this.id = id;
 
@@ -49,6 +50,7 @@ export class ExecutionDetailScreen {
   dispose(): void {
     this.renderComponent?.unload();
     this.renderComponent = null;
+    this.container = null;
   }
 
   private async fetchAndRender(id: number): Promise<void> {
@@ -64,11 +66,6 @@ export class ExecutionDetailScreen {
     if (!exec) {
       this.container.createDiv({ cls: "agentmd-empty", text: "Execution not found." });
       return;
-    }
-
-    if (!this.renderComponent) {
-      this.renderComponent = new Component();
-      this.renderComponent.load();
     }
 
     this.renderCompleted(this.container, exec, messages);
