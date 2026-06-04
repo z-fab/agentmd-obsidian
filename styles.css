@@ -3,7 +3,7 @@
    Color tokens, view layouts, and component styles.
    ============================================================ */
 
-/* ---------- Color tokens ---------- */
+/* ---------- Color tokens (single source of truth) ---------- */
 .agentmd-status-running  { color: #3b82f6; }
 .agentmd-status-success  { color: #10b981; }
 .agentmd-status-failed   { color: #ef4444; }
@@ -41,73 +41,72 @@
   color: var(--text-faint);
 }
 
-/* ---------- View headers ---------- */
-.agentmd-view-header {
-  padding: 10px 12px;
+/* ---------- Panel header ---------- */
+.agentmd-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: var(--font-ui-small);
-  color: var(--text-normal);
+  gap: 7px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.agentmd-header-left {
+.agentmd-panel-header .agentmd-brand { font-weight: var(--font-semibold); }
+.agentmd-panel-header .agentmd-status-dot { margin-left: auto; color: var(--text-faint); font-size: 9px; }
+.agentmd-panel-header .agentmd-status-dot.is-online { color: #10b981; }
+
+/* ---------- Tabs ---------- */
+.agentmd-tabrow {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  border-bottom: 1px solid var(--background-modifier-border);
 }
-.agentmd-view-header .agentmd-view-icon {
-  color: #8b5cf6;
-  font-size: 14px;
+.agentmd-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
 }
-.agentmd-header-title {
+.agentmd-tab.active {
+  color: var(--text-normal);
+  border-bottom-color: #8b5cf6;
   font-weight: var(--font-semibold);
 }
-.agentmd-header-badge {
-  background: var(--background-modifier-border);
-  color: var(--text-muted);
+.agentmd-tab-count {
   font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  min-width: 18px;
-  text-align: center;
+  opacity: .7;
+  margin-left: 3px;
 }
-.agentmd-header-action {
-  background: none;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+
+/* ---------- Back bar ---------- */
+.agentmd-back-bar {
+  padding: 7px 12px;
   color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  border-bottom: 1px solid var(--background-modifier-border);
   cursor: pointer;
-  font-size: 14px;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
 }
-.agentmd-header-action:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
+.agentmd-back-bar:hover { color: var(--text-normal); }
 
 /* ---------- Chips ---------- */
 .agentmd-chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 1px 7px;
+  padding: 2px 9px;
   border-radius: 10px;
   font-size: var(--font-ui-smaller);
   background: var(--background-secondary);
   color: var(--text-muted);
   white-space: nowrap;
 }
-.agentmd-chip.running  { background: rgba(59,130,246,0.15); color: #3b82f6; }
-.agentmd-chip.scheduled { background: rgba(251,191,36,0.15); color: #fbbf24; }
-.agentmd-chip.watch    { background: rgba(6,182,212,0.15);  color: #06b6d4; }
-.agentmd-chip.manual   { background: var(--background-secondary); color: var(--text-faint); }
-.agentmd-chip.model    { background: transparent; color: var(--text-faint); border: 1px solid var(--background-modifier-border); }
+.agentmd-chip.running   { background: rgba(59,130,246,0.18); color: #60a5fa; font-weight: var(--font-semibold); }
+.agentmd-chip.scheduled { background: rgba(251,191,36,0.14); color: #fbbf24; }
+.agentmd-chip.watch     { background: rgba(6,182,212,0.14);  color: #06b6d4; }
+.agentmd-chip.manual    { background: var(--background-secondary); color: var(--text-faint); }
+.agentmd-chip.model     { background: transparent; color: var(--text-faint); border: 1px solid var(--background-modifier-border); }
 
 /* ---------- Action buttons ---------- */
 .agentmd-btn {
@@ -137,109 +136,148 @@
   cursor: not-allowed;
 }
 
-/* ---------- Agent cards ---------- */
-.agentmd-agent-card {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--background-modifier-border);
+/* ---------- Elevated cards + running animation ---------- */
+
+/* CSS @property for animatable conic-gradient angle */
+@property --agentmd-bd { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.agentmd-card {
+  position: relative;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 10px 11px;
   cursor: pointer;
 }
-.agentmd-agent-card:hover {
-  background: var(--background-secondary);
+.agentmd-card:hover { background: var(--background-modifier-hover); }
+
+.agentmd-card.is-running::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  padding: 1px;
+  background: conic-gradient(from var(--agentmd-bd), transparent 0 60%, #3b82f6 82%, #93c5fd 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: agentmd-rot 3.4s linear infinite;
+  pointer-events: none;
 }
-.agentmd-agent-card.is-running {
-  border-left: 2px solid #3b82f6;
-  background: rgba(59,130,246,0.05);
-}
-.agentmd-agent-card .agent-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.agentmd-agent-card .agent-name {
-  font-size: var(--font-ui-small);
-  font-weight: var(--font-semibold);
-  color: var(--text-normal);
-}
-.agentmd-agent-card .agent-desc {
-  font-size: var(--font-ui-smaller);
-  color: var(--text-muted);
-  margin-bottom: 6px;
-  line-height: 1.3;
-}
-.agentmd-agent-card .agent-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.agentmd-agent-card .agent-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 4px;
+@keyframes agentmd-rot { to { --agentmd-bd: 360deg; } }
+
+/* Fallback for engines without @property: static subtle blue border */
+@supports not (background: conic-gradient(from 0deg, red, red)) {
+  .agentmd-card.is-running { border-color: rgba(59,130,246,0.6); }
 }
 
-/* ---------- Live view cards ---------- */
-.agentmd-live-card {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--background-modifier-border);
-  cursor: pointer;
-}
-.agentmd-live-card:hover {
-  background: var(--background-secondary);
-}
-.agentmd-live-card .live-header {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--font-ui-small);
-}
-.agentmd-live-card .live-dot {
-  color: #3b82f6;
-}
-.agentmd-live-card .live-name {
-  font-weight: var(--font-semibold);
-  color: var(--text-normal);
-}
-.agentmd-live-card .live-id {
-  color: var(--text-faint);
-  font-size: var(--font-ui-smaller);
-}
-.agentmd-live-card .live-trigger {
-  font-size: var(--font-ui-smaller);
-}
-.agentmd-live-card .live-cancel {
-  margin-left: auto;
-  color: var(--text-faint);
-  cursor: pointer;
-  font-size: 12px;
-  width: 20px;
-  height: 20px;
-  display: flex;
+/* ---------- Emoji box ---------- */
+.agentmd-emoji-box {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
+  font-size: 14px;
+  background: var(--background-modifier-border);
 }
-.agentmd-live-card .live-cancel:hover {
-  color: #ef4444;
-  background: rgba(239,68,68,0.1);
+.agentmd-emoji-box.is-running { animation: agentmd-epulse 2.8s ease-in-out infinite; }
+@keyframes agentmd-epulse {
+  0%, 100% { background: rgba(59,130,246,0.16); }
+  50% { background: rgba(59,130,246,0.40); }
 }
-.agentmd-live-card .live-activity {
-  font-size: var(--font-ui-smaller);
+.agentmd-emoji-box.is-success { background: rgba(16,185,129,0.22); }
+.agentmd-emoji-box.is-error   { background: rgba(239,68,68,0.22); }
+.agentmd-emoji-box.is-aborted { background: rgba(245,158,11,0.22); }
+
+/* ---------- Stop pill (hover-only) ---------- */
+.agentmd-stop-pill {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 13px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
-  font-family: var(--font-monospace);
-  margin-top: 3px;
-  padding-left: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, color .15s, background .15s, border-color .15s;
 }
-.agentmd-live-card .live-stats {
+.agentmd-card:hover .agentmd-stop-pill { opacity: 1; }
+.agentmd-stop-pill:hover {
+  background: rgba(239,68,68,0.16);
+  border-color: rgba(239,68,68,0.5);
+  color: #ef4444;
+}
+
+/* ---------- Card list container ---------- */
+.agentmd-card-list {
+  padding: 8px;
   display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+/* ---------- Card meta line (status text + duration/tokens/cost) ---------- */
+.agentmd-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
   font-size: var(--font-ui-smaller);
   color: var(--text-faint);
-  margin-top: 3px;
-  padding-left: 14px;
+  font-family: var(--font-monospace);
+}
+.agentmd-meta-line .agentmd-meta-status { font-weight: var(--font-semibold); }
+
+.agentmd-activity {
+  margin-top: 7px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: var(--background-primary-alt);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Config rows (agent detail) ---------- */
+.agentmd-config-section { border-bottom: 1px solid var(--background-modifier-border); }
+.agentmd-config-row {
+  display: flex;
+  padding: 5px 12px;
+  font-size: var(--font-ui-smaller);
+  gap: 8px;
+}
+.agentmd-config-row .agentmd-config-label { color: var(--text-faint); min-width: 84px; }
+.agentmd-config-row .agentmd-config-value { color: var(--text-normal); word-break: break-word; }
+.agentmd-config-pill {
+  display: inline-block;
+  background: var(--background-secondary);
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin: 0 3px 3px 0;
+  font-size: 10px;
+  font-family: var(--font-monospace);
+}
+.agentmd-section-header {
+  padding: 8px 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-faint);
+  font-weight: var(--font-semibold);
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* ---------- Shared header pattern (Execution Detail + Agent Detail) ---------- */
@@ -570,7 +608,6 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-/* ---------- Agent Detail View ---------- */
 /* ---------- Agent Detail View ---------- */
 .agentmd-agent-detail .agent-detail-header {
   padding: 14px 16px;
