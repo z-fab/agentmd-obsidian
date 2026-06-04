@@ -59,9 +59,7 @@
 .agentmd-panel-header .agentmd-status-dot.is-online { color: #10b981; }
 
 /* ---------- Panel footer ---------- */
-.agentmd-panel-footer { position: relative; display: flex; justify-content: center; align-items: center; padding: 10px; }
-.agentmd-panel-footer .agentmd-status-dot { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-faint); font-size: 9px; }
-.agentmd-panel-footer .agentmd-status-dot.is-online { color: #10b981; }
+.agentmd-panel-footer { display: flex; justify-content: center; padding: 10px; }
 .agentmd-footer-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 14px; border-radius: 6px;

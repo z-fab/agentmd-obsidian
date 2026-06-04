@@ -131,8 +131,6 @@ export class PanelView extends ItemView {
 
     if (!isDetail(this.state)) {
       const footer = root.createDiv({ cls: "agentmd-panel-footer" });
-      const status = footer.createSpan({ cls: "agentmd-status-dot", text: "●" });
-      status.toggleClass("is-online", this.actions.isOnline());
       const refresh = footer.createEl("button", { cls: "agentmd-footer-btn" });
       const refreshIcon = refresh.createSpan({ cls: "agentmd-footer-btn-icon" });
       setIcon(refreshIcon, "refresh-cw");
