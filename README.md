@@ -62,7 +62,7 @@ A **‹ back** bar at the top of any detail screen returns you to the originatin
 
 The plugin is not yet in the Obsidian community list, so install it manually:
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest GitHub release](https://github.com/z-fab/agentmd/releases).
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest GitHub release](https://github.com/z-fab/agentmd-obsidian/releases).
 2. Place all three files in `<vault>/.obsidian/plugins/agentmd/`. The folder name must be `agentmd`.
 3. In Obsidian, go to **Settings → Community plugins** and enable **Agentmd**.
 
@@ -132,7 +132,7 @@ Note: agents you run may themselves call external LLM providers (OpenAI, Anthrop
 ## Development
 
 ```bash
-git clone https://github.com/z-fab/agentmd.git
+git clone https://github.com/z-fab/agentmd-obsidian.git
 cd agentmd-obsidian
 npm install
 
