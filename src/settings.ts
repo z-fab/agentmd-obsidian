@@ -22,5 +22,5 @@ export const DEFAULT_SETTINGS: AgentmdSettings = {
   notifications: "all",
   pollIntervalMs: 15000,
   agentmdPath: "agentmd",
-  accentColor: "#ffffff",
+  accentColor: "#4EA92E",
 };

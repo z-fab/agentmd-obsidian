@@ -72,9 +72,14 @@ export class AgentmdSettingTab extends PluginSettingTab {
       .setDesc("Highlight color for active tabs, primary buttons, and selected filters.")
       .addDropdown((dropdown) =>
         dropdown
-          .addOption("#ffffff", "White")
           .addOption("#4EA92E", "Green")
+          .addOption("#3b82f6", "Blue")
           .addOption("#8b5cf6", "Purple")
+          .addOption("#d946ef", "Magenta")
+          .addOption("#06b6d4", "Cyan")
+          .addOption("#f59e0b", "Orange")
+          .addOption("#ef4444", "Red")
+          .addOption("#ffffff", "White")
           .setValue(this.plugin.settings.accentColor)
           .onChange(async (value) => {
             this.plugin.settings.accentColor = value;

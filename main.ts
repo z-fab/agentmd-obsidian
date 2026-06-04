@@ -151,7 +151,7 @@ export default class AgentmdPlugin extends Plugin {
   }
 
   applyAccent(): void {
-    document.body.style.setProperty("--agentmd-accent", this.settings.accentColor || "#ffffff");
+    document.body.style.setProperty("--agentmd-accent", this.settings.accentColor || "#4EA92E");
   }
 
   async saveSettings(): Promise<void> {
