@@ -54,7 +54,7 @@ export class AgentDetailScreen {
     container.empty();
 
     if (this.loading && !this.detail) {
-      container.createDiv({ cls: "agentmd-empty", text: "Carregando…" });
+      container.createDiv({ cls: "agentmd-empty", text: "Loading…" });
       return;
     }
     if (!this.detail) {
@@ -111,7 +111,7 @@ export class AgentDetailScreen {
     const actions = header.createDiv({ cls: "agent-detail-actions" });
 
     if (runningId !== null) {
-      createChip(actions, `● Rodando #${runningId}`, "running");
+      createChip(actions, `● Running #${runningId}`, "running");
       createStopPill(actions, () => this.ctx.actions.onCancelExecution(runningId));
     } else {
       const runBtn = actions.createEl("button", { cls: "agentmd-btn", text: "▶ Run" });
@@ -127,7 +127,7 @@ export class AgentDetailScreen {
     openBtn.addEventListener("click", () => this.ctx.actions.onOpenSourceFile(d.name));
 
     const histBtn = actions.createEl("button", { cls: "agentmd-btn", text: "📊 All executions" });
-    histBtn.addEventListener("click", () => this.ctx.nav.switchTab("history"));
+    histBtn.addEventListener("click", () => this.ctx.nav.openHistoryForAgent(d.name));
   }
 
   private renderStats(container: HTMLElement): void {
@@ -156,10 +156,10 @@ export class AgentDetailScreen {
     if (this.runs.length === 0) return;
 
     const sectionHeader = container.createDiv({ cls: "agentmd-section-header" });
-    sectionHeader.createSpan({ text: "Execuções recentes" });
+    sectionHeader.createSpan({ text: "Recent executions" });
     if (this.runs.length > 5) {
-      const link = sectionHeader.createSpan({ cls: "agent-detail-link", text: "ver todas" });
-      link.addEventListener("click", () => this.ctx.nav.switchTab("history"));
+      const link = sectionHeader.createSpan({ cls: "agent-detail-link", text: "view all" });
+      link.addEventListener("click", () => this.ctx.nav.openHistoryForAgent(this.name));
     }
 
     const list = container.createDiv({ cls: "agent-detail-runs" });
@@ -186,7 +186,7 @@ export class AgentDetailScreen {
 
   private renderConfig(container: HTMLElement): void {
     const d = this.detail!;
-    container.createDiv({ cls: "agentmd-section-header" }).createSpan({ text: "Configuração" });
+    container.createDiv({ cls: "agentmd-section-header" }).createSpan({ text: "Configuration" });
 
     const config = container.createDiv({ cls: "agentmd-config-section" });
 
@@ -242,7 +242,7 @@ export class AgentDetailScreen {
     if (settings.max_execution_tokens != null) limits.push(formatTokens(settings.max_execution_tokens as number));
     if (settings.temperature != null) limits.push(`temp ${settings.temperature}`);
     if (limits.length > 0) {
-      this.renderConfigRow(config, "Limites", limits.join(" · "));
+      this.renderConfigRow(config, "Limits", limits.join(" · "));
     }
 
     // Last run
@@ -252,7 +252,7 @@ export class AgentDetailScreen {
 
     // Source
     if (d.source_path) {
-      this.renderConfigRow(config, "Fonte", d.source_path);
+      this.renderConfigRow(config, "Source", d.source_path);
     }
   }
 

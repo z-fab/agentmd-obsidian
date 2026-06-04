@@ -3,13 +3,6 @@ import { createCard, createEmojiBox, createChip, createStopPill } from "../../ui
 import { resolveAgentEmoji } from "../../ui/agent-emoji";
 
 export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): void {
-  // Header row
-  const header = container.createDiv({ cls: "agentmd-section-header" });
-  header.createSpan({ cls: "agentmd-header-title", text: "Agentes" });
-  const refreshBtn = header.createEl("button", { cls: "agentmd-header-action", text: "↻" });
-  refreshBtn.title = "Refresh agent list";
-  refreshBtn.addEventListener("click", () => ctx.actions.onRefreshAgents());
-
   if (ctx.store.agents.length === 0) {
     container.createDiv({ cls: "agentmd-empty", text: "No agents found. Is the backend running?" });
     return;
@@ -42,7 +35,7 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
     const footer = card.createDiv({ cls: "agentmd-card-footer" });
 
     if (isRunning) {
-      createChip(footer, "● Rodando #" + runningId, "running");
+      createChip(footer, "● Running #" + runningId, "running");
       createStopPill(footer, () => ctx.actions.onCancelExecution(runningId!));
     } else {
       // Trigger chip

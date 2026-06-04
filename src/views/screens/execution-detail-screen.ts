@@ -35,7 +35,7 @@ export class ExecutionDetailScreen {
       if (this.cachedExec && this.cachedExec.id === id) {
         this.renderCompleted(container, this.cachedExec, this.cachedMessages);
       } else {
-        container.createDiv({ cls: "agentmd-empty", text: "Carregando…" });
+        container.createDiv({ cls: "agentmd-empty", text: "Loading…" });
         void this.fetchAndRender(id);
       }
     } else {

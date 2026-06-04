@@ -5,7 +5,7 @@ import { formatDuration, formatTokens, formatCost } from "../../ui/format";
 
 export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): void {
   if (ctx.store.running.size === 0) {
-    container.createDiv({ cls: "agentmd-empty", text: "Nenhuma execução rodando." });
+    container.createDiv({ cls: "agentmd-empty", text: "No running executions." });
     return;
   }
 
@@ -29,7 +29,7 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
 
     // Meta line
     const meta = card.createDiv({ cls: "agentmd-meta-line" });
-    meta.createSpan({ cls: "agentmd-meta-status agentmd-status-running", text: "● Rodando" });
+    meta.createSpan({ cls: "agentmd-meta-status agentmd-status-running", text: "● Running" });
 
     const elapsed = Math.round((Date.now() - exec.startedAt) / 1000);
     meta.createSpan({ text: formatDuration(elapsed) });

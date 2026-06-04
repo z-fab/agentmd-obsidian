@@ -8,17 +8,17 @@ type StatusFilter = "all" | "success" | "failed" | "aborted";
 type PeriodFilter = "today" | "7d" | "30d" | "all";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "Todos" },
+  { value: "all", label: "All" },
   { value: "success", label: "✓" },
   { value: "failed", label: "✗" },
   { value: "aborted", label: "⚠" },
 ];
 
 const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
-  { value: "today", label: "Hoje" },
+  { value: "today", label: "Today" },
   { value: "7d", label: "7d" },
   { value: "30d", label: "30d" },
-  { value: "all", label: "Tudo" },
+  { value: "all", label: "All" },
 ];
 
 export class HistoryScreen {
@@ -34,6 +34,10 @@ export class HistoryScreen {
   private container: HTMLElement | null = null;
 
   constructor(private ctx: PanelContext) {}
+
+  reload(): void { this.offset = 0; this.loaded = false; }
+
+  setAgentFilter(name: string): void { this.agentFilter = name; this.offset = 0; this.loaded = false; }
 
   render(container: HTMLElement): void {
     this.container = container;
@@ -84,14 +88,14 @@ export class HistoryScreen {
     this.renderFilters(container);
 
     if (this.loading) {
-      container.createDiv({ cls: "agentmd-empty", text: "Carregando…" });
+      container.createDiv({ cls: "agentmd-empty", text: "Loading…" });
       return;
     }
 
     const filtered = this.filterByPeriod(this.executions);
 
     if (filtered.length === 0) {
-      container.createDiv({ cls: "agentmd-empty", text: "Nenhuma execução encontrada." });
+      container.createDiv({ cls: "agentmd-empty", text: "No executions found." });
       return;
     }
 
@@ -102,7 +106,7 @@ export class HistoryScreen {
 
     if (this.executions.length >= this.offset + this.pageSize) {
       const loadMore = container.createDiv({ cls: "agentmd-load-more" });
-      loadMore.createEl("button", { cls: "agentmd-btn", text: "Carregar mais" }).addEventListener("click", () => {
+      loadMore.createEl("button", { cls: "agentmd-btn", text: "Load more" }).addEventListener("click", () => {
         this.offset += this.pageSize;
         void this.load();
       });
@@ -114,9 +118,9 @@ export class HistoryScreen {
 
     // Agente (first): dropdown
     const agentRow = filterArea.createDiv({ cls: "agentmd-filter-group" });
-    agentRow.createSpan({ cls: "agentmd-filter-label", text: "Agente" });
+    agentRow.createSpan({ cls: "agentmd-filter-label", text: "Agent" });
     const agentSelect = agentRow.createEl("select", { cls: "agentmd-filter-select" });
-    const allOpt = agentSelect.createEl("option", { text: "Todos os agentes", value: "all" });
+    const allOpt = agentSelect.createEl("option", { text: "All agents", value: "all" });
     if (this.agentFilter === "all") allOpt.selected = true;
     for (const agent of this.ctx.store.agents) {
       const opt = agentSelect.createEl("option", { text: agent.name, value: agent.name });
@@ -144,7 +148,7 @@ export class HistoryScreen {
 
     // Período: segmented control
     const periodRow = filterArea.createDiv({ cls: "agentmd-filter-group" });
-    periodRow.createSpan({ cls: "agentmd-filter-label", text: "Período" });
+    periodRow.createSpan({ cls: "agentmd-filter-label", text: "Period" });
     const periodSeg = periodRow.createDiv({ cls: "agentmd-segmented" });
     for (const opt of PERIOD_OPTIONS) {
       const btn = periodSeg.createEl("button", {
@@ -178,11 +182,11 @@ export class HistoryScreen {
     // Meta line: status text + duration · tokens · cost (+ error)
     const meta = card.createDiv({ cls: "agentmd-meta-line" });
     if (isSuccess) {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-success", text: "✓ Concluído" });
+      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-success", text: "✓ Success" });
     } else if (isFailed) {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-failed", text: "✗ Erro" });
+      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-failed", text: "✗ Failed" });
     } else {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-aborted", text: "⚠ Abortado" });
+      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-aborted", text: "⚠ Aborted" });
     }
     meta.createSpan({ text: formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined) });
     meta.createSpan({ text: formatTokens(exec.total_tokens) });

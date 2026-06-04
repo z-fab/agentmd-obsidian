@@ -11,7 +11,8 @@
 .agentmd-trigger-manual    { color: #888888; }
 .agentmd-trigger-scheduler { color: #fbbf24; }
 .agentmd-trigger-watch     { color: #06b6d4; }
-.agentmd-brand           { color: #8b5cf6; }
+
+.agentmd-panel { min-width: 240px; }
 
 /* ---------- Status bar ---------- */
 .agentmd-status-bar {
@@ -49,9 +50,26 @@
   padding: 9px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.agentmd-panel-header .agentmd-brand { font-weight: var(--font-semibold); }
+.agentmd-brand { display: flex; align-items: center; gap: 6px; font-weight: var(--font-semibold); color: #8b5cf6; }
+.agentmd-brand-icon { display: inline-flex; align-items: center; color: #8b5cf6; }
+.agentmd-brand-icon svg { width: 16px; height: 16px; }
 .agentmd-panel-header .agentmd-status-dot { margin-left: auto; color: var(--text-faint); font-size: 9px; }
 .agentmd-panel-header .agentmd-status-dot.is-online { color: #10b981; }
+
+/* ---------- Panel footer ---------- */
+.agentmd-panel-footer {
+  display: flex; justify-content: flex-end;
+  padding: 6px 10px; border-top: 1px solid var(--background-modifier-border);
+}
+.agentmd-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border); border-radius: 6px;
+  color: var(--text-muted); cursor: pointer;
+}
+.agentmd-icon-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.agentmd-icon-btn svg { width: 15px; height: 15px; }
 
 /* ---------- Tabs ---------- */
 .agentmd-tabrow {
@@ -68,6 +86,10 @@
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 .agentmd-tab.active {
   color: var(--text-normal);
@@ -76,8 +98,11 @@
 }
 .agentmd-tab-count {
   font-size: 10px;
-  opacity: .7;
-  margin-left: 3px;
+  line-height: 1;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
 }
 
 /* ---------- Back bar ---------- */
@@ -98,7 +123,8 @@
   padding: 2px 9px;
   border-radius: 10px;
   font-size: var(--font-ui-smaller);
-  background: var(--background-secondary);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -143,13 +169,16 @@
 
 .agentmd-card {
   position: relative;
-  background: var(--background-secondary);
+  background: var(--background-modifier-hover);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   padding: 10px 11px;
   cursor: pointer;
 }
-.agentmd-card:hover { background: var(--background-modifier-hover); }
+.agentmd-card:hover {
+  background: var(--background-modifier-active-hover, var(--background-secondary-alt, var(--background-modifier-hover)));
+  border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+}
 
 .agentmd-card.is-running::before {
   content: "";
@@ -181,6 +210,8 @@
   justify-content: center;
   font-size: 14px;
   background: var(--background-modifier-border);
+  line-height: 1;
+  flex: 0 0 auto;
 }
 .agentmd-emoji-box.is-running { animation: agentmd-epulse 2.8s ease-in-out infinite; }
 @keyframes agentmd-epulse {
@@ -227,7 +258,7 @@
 .agentmd-card-name { font-weight: var(--font-semibold); color: var(--text-normal); }
 .agentmd-card-id { color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .agentmd-card-desc { color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.35; margin-top: 4px; }
-.agentmd-card-footer { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.agentmd-card-footer { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; row-gap: 6px; }
 .agentmd-card-footer .agentmd-actions { margin-left: auto; display: flex; gap: 4px; }
 
 /* ---------- Card meta line (status text + duration/tokens/cost) ---------- */
@@ -514,30 +545,21 @@
   letter-spacing: 0.3px;
   min-width: 42px;
 }
-.agentmd-segmented {
-  display: flex;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  overflow: hidden;
-}
+.agentmd-segmented { display: flex; gap: 4px; flex-wrap: wrap; }
 .agentmd-seg-btn {
   background: var(--background-primary);
-  border: none;
-  border-right: 1px solid var(--background-modifier-border);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
   padding: 3px 10px;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
   cursor: pointer;
 }
-.agentmd-seg-btn:last-child {
-  border-right: none;
-}
-.agentmd-seg-btn:hover {
-  background: var(--background-modifier-hover);
-}
+.agentmd-seg-btn:hover { background: var(--background-modifier-hover); }
 .agentmd-seg-btn.active {
   background: rgba(139,92,246,0.2);
   color: #8b5cf6;
+  border-color: rgba(139,92,246,0.4);
   font-weight: var(--font-semibold);
 }
 .agentmd-filter-select {

@@ -25,9 +25,9 @@ export function createChip(parent: HTMLElement, text: string, variant?: string):
   return chip;
 }
 
-/** Stop pill button ("■ Parar"), hidden until card hover via CSS. */
+/** Stop pill button ("■ Stop"), hidden until card hover via CSS. */
 export function createStopPill(parent: HTMLElement, onClick: (e: MouseEvent) => void): HTMLElement {
-  const btn = parent.createEl("button", { cls: "agentmd-stop-pill", text: "■ Parar" });
+  const btn = parent.createEl("button", { cls: "agentmd-stop-pill", text: "■ Stop" });
   btn.addEventListener("click", (e) => { e.stopPropagation(); onClick(e); });
   return btn;
 }

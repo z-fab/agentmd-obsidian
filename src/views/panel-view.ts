@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, App } from "obsidian";
+import { ItemView, WorkspaceLeaf, App, setIcon } from "obsidian";
 import type { EventStore } from "../store/event-store";
 import { VIEW_TYPE_PANEL } from "./constants";
 import { type NavState, type Screen, type TabKey, initialNav, currentScreen, baseTab, switchTab, push, back, isDetail } from "./nav";
@@ -36,15 +36,16 @@ export interface PanelContext {
     push: (s: Screen) => void;
     back: () => void;
     switchTab: (t: TabKey) => void;
+    openHistoryForAgent: (agentName: string) => void;
   };
 }
 
 function tabLabel(t: TabKey): string {
-  return t === "agents" ? "Agentes" : t === "live" ? "Live" : "Histórico";
+  return t === "agents" ? "Agents" : t === "live" ? "Live" : "History";
 }
 
 /**
- * Single panel hosting the Agentes/Live/Histórico tabs and drill-down detail
+ * Single panel hosting the Agents/Live/History tabs and drill-down detail
  * screens. Owns the navigation stack, store subscriptions, and a 1s tick used
  * by the Live tab and running-execution detail.
  */
@@ -79,6 +80,11 @@ export class PanelView extends ItemView {
         push: (s) => { this.state = push(this.state, s); this.render(); },
         back: () => { this.state = back(this.state); this.render(); },
         switchTab: (t) => { this.state = switchTab(this.state, t); this.render(); },
+        openHistoryForAgent: (agentName: string) => {
+          this.history.setAgentFilter(agentName);
+          this.state = switchTab(this.state, "history");
+          this.render();
+        },
       },
     };
     this.history = new HistoryScreen(this.ctx);
@@ -107,7 +113,10 @@ export class PanelView extends ItemView {
 
     // Header
     const header = root.createDiv({ cls: "agentmd-panel-header" });
-    header.createSpan({ cls: "agentmd-brand", text: "🤖 AgentMD" });
+    const brand = header.createDiv({ cls: "agentmd-brand" });
+    const brandIcon = brand.createSpan({ cls: "agentmd-brand-icon" });
+    setIcon(brandIcon, "bot");
+    brand.createSpan({ cls: "agentmd-brand-text", text: "AgentMD" });
     const dot = header.createSpan({ cls: "agentmd-status-dot", text: "●" });
     dot.toggleClass("is-online", this.actions.isOnline());
 
@@ -128,7 +137,23 @@ export class PanelView extends ItemView {
 
     const body = root.createDiv({ cls: "agentmd-panel-body" });
     this.renderScreen(body, screen);
+
+    if (!isDetail(this.state)) {
+      const footer = root.createDiv({ cls: "agentmd-panel-footer" });
+      const refresh = footer.createEl("button", { cls: "agentmd-icon-btn" });
+      setIcon(refresh, "refresh-cw");
+      refresh.setAttribute("aria-label", "Refresh");
+      refresh.title = "Refresh";
+      refresh.addEventListener("click", () => this.refreshActive());
+    }
+
     this.updateTick(screen);
+  }
+
+  private refreshActive(): void {
+    const tab = baseTab(this.state);
+    if (tab === "history") { this.history.reload(); this.render(); }
+    else { this.actions.onRefreshAgents(); }
   }
 
   private renderScreen(body: HTMLElement, screen: Screen): void {
@@ -155,9 +180,9 @@ export class PanelView extends ItemView {
       if (count && count > 0) b.createSpan({ cls: "agentmd-tab-count", text: String(count) });
       b.addEventListener("click", () => this.goToTab(tab));
     };
-    mk("agents", "Agentes", this.store.agents.length);
+    mk("agents", "Agents", this.store.agents.length);
     mk("live", "Live", this.store.running.size);
-    mk("history", "Histórico");
+    mk("history", "History");
   }
 
   private renderOffline(root: HTMLElement): void {
