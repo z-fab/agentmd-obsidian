@@ -1,6 +1,5 @@
 import type { PanelContext } from "../panel-view";
 import { createCard, createEmojiBox, createChip, createStopPill } from "../../ui/cards";
-import { resolveAgentEmoji } from "../../ui/agent-emoji";
 
 export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): void {
   if (ctx.store.agents.length === 0) {
@@ -23,7 +22,7 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
 
     // Name row: emoji box + agent name
     const nameRow = card.createDiv({ cls: "agentmd-card-row" });
-    createEmojiBox(nameRow, resolveAgentEmoji(agent.name, agent.icon), isRunning ? "running" : undefined);
+    createEmojiBox(nameRow, agent.icon || "🤖", isRunning ? "running" : undefined);
     nameRow.createSpan({ cls: "agentmd-card-name", text: agent.name });
 
     // Description

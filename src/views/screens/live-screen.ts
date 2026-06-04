@@ -1,6 +1,5 @@
 import type { PanelContext } from "../panel-view";
 import { createCard, createEmojiBox, createStopPill } from "../../ui/cards";
-import { resolveAgentEmoji } from "../../ui/agent-emoji";
 import { formatDuration, formatTokens, formatCost } from "../../ui/format";
 
 export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): void {
@@ -17,7 +16,8 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
 
     // Name row
     const nameRow = card.createDiv({ cls: "agentmd-card-row" });
-    createEmojiBox(nameRow, resolveAgentEmoji(exec.agent), "running");
+    const agentIcon = ctx.store.agents.find((a) => a.name === exec.agent)?.icon || "🤖";
+    createEmojiBox(nameRow, agentIcon, "running");
     nameRow.createSpan({ cls: "agentmd-card-name", text: exec.agent });
     nameRow.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
     createStopPill(nameRow, () => ctx.actions.onCancelExecution(exec.id));

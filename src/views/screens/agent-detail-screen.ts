@@ -1,7 +1,6 @@
 import type { PanelContext } from "../panel-view";
 import type { AgentDetail, ExecutionSummary } from "../../types";
 import { createEmojiBox, createChip, createStopPill } from "../../ui/cards";
-import { resolveAgentEmoji } from "../../ui/agent-emoji";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "../../ui/format";
 
 export class AgentDetailScreen {
@@ -83,7 +82,7 @@ export class AgentDetailScreen {
 
     // Row 1: emoji box + name
     const titleRow = header.createDiv({ cls: "exec-title" });
-    createEmojiBox(titleRow, resolveAgentEmoji(d.name, d.icon), runningId !== null ? "running" : undefined);
+    createEmojiBox(titleRow, d.icon || "🤖", runningId !== null ? "running" : undefined);
     titleRow.createSpan({ cls: "exec-name agent-detail-name", text: d.name });
 
     // Row 2: trigger · model · next run

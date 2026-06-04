@@ -1,7 +1,6 @@
 import type { PanelContext } from "../panel-view";
 import type { ExecutionSummary } from "../../types";
 import { createCard, createEmojiBox } from "../../ui/cards";
-import { resolveAgentEmoji } from "../../ui/agent-emoji";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "../../ui/format";
 
 type StatusFilter = "all" | "success" | "failed" | "aborted";
@@ -173,7 +172,7 @@ export class HistoryScreen {
     // Name row: emoji box + agent name + #id + time
     const row = card.createDiv({ cls: "agentmd-card-row" });
     const agentIcon = this.ctx.store.agents.find((a) => a.name === exec.agent_id)?.icon;
-    createEmojiBox(row, resolveAgentEmoji(exec.agent_id, agentIcon), state);
+    createEmojiBox(row, agentIcon || "🤖", state);
     row.createSpan({ cls: "agentmd-card-name", text: exec.agent_id });
     row.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
     const time = row.createSpan({ cls: "exec-row-time", text: formatRelativeTime(exec.started_at) });

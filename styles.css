@@ -14,6 +14,8 @@
 
 .agentmd-panel { min-width: 240px; }
 
+.agentmd-panel-body { padding-top: 10px; }
+
 /* ---------- Status bar ---------- */
 .agentmd-status-bar {
   font-variant-numeric: tabular-nums;
@@ -57,43 +59,33 @@
 .agentmd-panel-header .agentmd-status-dot.is-online { color: #10b981; }
 
 /* ---------- Panel footer ---------- */
-.agentmd-panel-footer {
-  display: flex; justify-content: flex-end;
-  padding: 6px 10px; border-top: 1px solid var(--background-modifier-border);
-}
-.agentmd-icon-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; padding: 0;
+.agentmd-panel-footer { display: flex; justify-content: center; padding: 10px; }
+.agentmd-footer-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 6px;
   background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border); border-radius: 6px;
-  color: var(--text-muted); cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-smaller);
 }
-.agentmd-icon-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.agentmd-icon-btn svg { width: 15px; height: 15px; }
+.agentmd-footer-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.agentmd-footer-btn-icon { display: inline-flex; }
+.agentmd-footer-btn-icon svg { width: 14px; height: 14px; }
 
 /* ---------- Tabs ---------- */
-.agentmd-tabrow {
-  display: flex;
-  border-bottom: 1px solid var(--background-modifier-border);
-}
+.agentmd-tabrow { display: flex; border-bottom: 1px solid var(--background-modifier-border); }
 .agentmd-tab {
   flex: 1;
-  text-align: center;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   padding: 8px 4px;
-  border: none;
-  background: none;
+  background: transparent; border: none; box-shadow: none; border-radius: 0;
   border-bottom: 2px solid transparent;
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
+  margin-bottom: -1px;            /* overlap the row's bottom border */
+  color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer;
 }
+.agentmd-tab:hover { color: var(--text-normal); background: transparent; box-shadow: none; }
 .agentmd-tab.active {
   color: var(--text-normal);
-  border-bottom-color: #8b5cf6;
+  border-bottom-color: var(--text-accent, #8b5cf6);
   font-weight: var(--font-semibold);
 }
 .agentmd-tab-count {

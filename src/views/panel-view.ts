@@ -140,10 +140,11 @@ export class PanelView extends ItemView {
 
     if (!isDetail(this.state)) {
       const footer = root.createDiv({ cls: "agentmd-panel-footer" });
-      const refresh = footer.createEl("button", { cls: "agentmd-icon-btn" });
-      setIcon(refresh, "refresh-cw");
+      const refresh = footer.createEl("button", { cls: "agentmd-footer-btn" });
+      const refreshIcon = refresh.createSpan({ cls: "agentmd-footer-btn-icon" });
+      setIcon(refreshIcon, "refresh-cw");
+      refresh.createSpan({ text: "Refresh" });
       refresh.setAttribute("aria-label", "Refresh");
-      refresh.title = "Refresh";
       refresh.addEventListener("click", () => this.refreshActive());
     }
 
