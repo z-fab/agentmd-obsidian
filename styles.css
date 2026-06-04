@@ -222,6 +222,14 @@
   gap: 8px;
 }
 
+/* ---------- Card row / name / desc / footer ---------- */
+.agentmd-card-row { display: flex; align-items: center; gap: 8px; }
+.agentmd-card-name { font-weight: var(--font-semibold); color: var(--text-normal); }
+.agentmd-card-id { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.agentmd-card-desc { color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.35; margin-top: 4px; }
+.agentmd-card-footer { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.agentmd-card-footer .agentmd-actions { margin-left: auto; display: flex; gap: 4px; }
+
 /* ---------- Card meta line (status text + duration/tokens/cost) ---------- */
 .agentmd-meta-line {
   display: flex;

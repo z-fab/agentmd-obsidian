@@ -16,10 +16,10 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
     card.addEventListener("click", () => ctx.nav.push({ kind: "execution", id: exec.id }));
 
     // Name row
-    const nameRow = card.createDiv({ cls: "agentmd-name-row" });
+    const nameRow = card.createDiv({ cls: "agentmd-card-row" });
     createEmojiBox(nameRow, resolveAgentEmoji(exec.agent), "running");
-    nameRow.createSpan({ text: exec.agent });
-    nameRow.createSpan({ cls: "agentmd-id-faint", text: `#${exec.id}` });
+    nameRow.createSpan({ cls: "agentmd-card-name", text: exec.agent });
+    nameRow.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
     createStopPill(nameRow, () => ctx.actions.onCancelExecution(exec.id));
 
     // Activity line

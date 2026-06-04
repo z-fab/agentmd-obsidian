@@ -29,17 +29,17 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
     card.addEventListener("click", () => ctx.nav.push({ kind: "agent", name: agent.name }));
 
     // Name row: emoji box + agent name
-    const nameRow = card.createDiv({ cls: "agent-name-row" });
+    const nameRow = card.createDiv({ cls: "agentmd-card-row" });
     createEmojiBox(nameRow, resolveAgentEmoji(agent.name, agent.icon), isRunning ? "running" : undefined);
-    nameRow.createSpan({ cls: "agent-name", text: agent.name });
+    nameRow.createSpan({ cls: "agentmd-card-name", text: agent.name });
 
     // Description
     if (agent.description) {
-      card.createDiv({ cls: "agent-desc", text: agent.description });
+      card.createDiv({ cls: "agentmd-card-desc", text: agent.description });
     }
 
     // Footer row
-    const footer = card.createDiv({ cls: "agent-footer" });
+    const footer = card.createDiv({ cls: "agentmd-card-footer" });
 
     if (isRunning) {
       createChip(footer, "● Rodando #" + runningId, "running");
@@ -63,7 +63,7 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
       }
 
       // Run buttons
-      const actions = footer.createDiv({ cls: "agent-actions" });
+      const actions = footer.createDiv({ cls: "agentmd-actions" });
 
       const runBtn = actions.createEl("button", { cls: "agentmd-btn", text: "▶" });
       runBtn.title = "Run without arguments";
