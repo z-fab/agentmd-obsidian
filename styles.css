@@ -77,16 +77,26 @@
   flex: 1;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   padding: 8px 4px;
-  background: transparent; border: none; box-shadow: none; border-radius: 0;
-  border-bottom: 2px solid transparent;
+  /* Kill Obsidian's default <button> chrome (bg + shadow) so tabs read as tabs */
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none;
+  border-bottom: 2px solid transparent;   /* only the bottom edge */
+  border-radius: 0;
   margin-bottom: -1px;            /* overlap the row's bottom border */
   color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer;
 }
-.agentmd-tab:hover { color: var(--text-normal); background: transparent; box-shadow: none; }
+.agentmd-tab:hover {
+  color: var(--text-normal);
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
 .agentmd-tab.active {
   color: var(--text-normal);
   border-bottom-color: var(--text-accent, #8b5cf6);
   font-weight: var(--font-semibold);
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 .agentmd-tab-count {
   font-size: 10px;
