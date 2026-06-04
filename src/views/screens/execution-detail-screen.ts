@@ -23,6 +23,7 @@ export class ExecutionDetailScreen {
     }
     this.id = id;
     this.container = container;
+    container.addClass("agentmd-exec-detail");
 
     this.renderComponent?.unload();
     this.renderComponent = new Component();

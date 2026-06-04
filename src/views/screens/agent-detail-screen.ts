@@ -16,6 +16,7 @@ export class AgentDetailScreen {
 
   render(container: HTMLElement, name: string): void {
     this.container = container;
+    container.addClass("agentmd-agent-detail");
     if (name !== this.name) {
       this.name = name;
       this.detail = null;
