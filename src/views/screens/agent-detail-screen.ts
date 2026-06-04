@@ -20,6 +20,7 @@ export class AgentDetailScreen {
       this.name = name;
       this.detail = null;
       this.runs = [];
+      this.loading = true;
       void this.load();
     }
     this.paint();

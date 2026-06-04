@@ -38,6 +38,7 @@ export class HistoryScreen {
   render(container: HTMLElement): void {
     this.container = container;
     if (!this.loaded && !this.loading) {
+      this.loading = true;
       void this.load();
     }
     this.paint();
