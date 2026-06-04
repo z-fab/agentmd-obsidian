@@ -375,10 +375,6 @@ export default class AgentmdPlugin extends Plugin {
     (await this.activatePanel())?.openExecution(executionId);
   }
 
-  private async openAgentDetail(name: string): Promise<void> {
-    (await this.activatePanel())?.openAgent(name);
-  }
-
   private async openSourceFile(agentName: string): Promise<void> {
     let abs: string | null = null;
     try { abs = (await this.client.getAgent(agentName)).source_path ?? null; } catch { /* offline */ }
@@ -393,10 +389,6 @@ export default class AgentmdPlugin extends Plugin {
     const { shell } = require("electron") as { shell: { showItemInFolder: (path: string) => void } };
     shell.showItemInFolder(abs);
     new Notice(`Source revealed: ${agentName}.md`);
-  }
-
-  private async openExecutionsForAgent(agentName: string): Promise<void> {
-    await this.activatePanel("history");
   }
 
   private async promptRunWithFile(): Promise<void> {
