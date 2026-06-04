@@ -14,8 +14,6 @@ export class AgentmdSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "AgentMD Settings" });
-
     new Setting(containerEl)
       .setName("Socket path")
       .setDesc("Absolute path to the agentmd Unix domain socket.")
@@ -84,7 +82,7 @@ export class AgentmdSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("AgentMD executable")
+      .setName("Agentmd executable")
       .setDesc(
         "Path to the agentmd CLI. Used for the 'Start backend' command. " +
         "If agentmd is in your PATH, the default works. Otherwise, set the full path " +

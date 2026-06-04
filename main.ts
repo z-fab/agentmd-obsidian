@@ -84,7 +84,7 @@ export default class AgentmdPlugin extends Plugin {
     );
 
     // Commands
-    this.addCommand({ id: "open-panel", name: "Open AgentMD panel", callback: () => void this.activatePanel() });
+    this.addCommand({ id: "open-panel", name: "Open Agentmd panel", callback: () => void this.activatePanel() });
     this.addCommand({ id: "open-live", name: "Open Live", callback: () => void this.activatePanel("live") });
     this.addCommand({ id: "open-history", name: "Open History", callback: () => void this.activatePanel("history") });
     this.addCommand({
@@ -123,7 +123,7 @@ export default class AgentmdPlugin extends Plugin {
     this.addSettingTab(new AgentmdSettingTab(this.app, this));
 
     // Ribbon icon
-    this.addRibbonIcon("bot", "AgentMD", () => void this.activatePanel());
+    this.addRibbonIcon("bot", "Agentmd", () => void this.activatePanel());
 
     // Default layout on first install + migration of old leaves
     this.app.workspace.onLayoutReady(() => {
@@ -233,14 +233,14 @@ export default class AgentmdPlugin extends Plugin {
   // ---- Backend lifecycle ----
 
   private async startBackend(): Promise<boolean> {
-    new Notice("Starting AgentMD…");
+    new Notice("Starting Agentmd…");
     const result = await this.lifecycle.start();
     if (result.success) {
-      new Notice("AgentMD started");
+      new Notice("Agentmd started");
       this.globalSSE.reconnectNow();
       return true;
     } else {
-      new Notice(`Failed to start AgentMD: ${result.error}`);
+      new Notice(`Failed to start Agentmd: ${result.error}`);
       return false;
     }
   }
@@ -250,11 +250,11 @@ export default class AgentmdPlugin extends Plugin {
     if (stopped) {
       this.globalSSE.stop();
       this.monitor.notifySSEDisconnected();
-      new Notice("AgentMD stopped");
+      new Notice("Agentmd stopped");
       // Restart SSE so it auto-reconnects when the user starts the backend again
       this.globalSSE.start();
     } else {
-      new Notice("Failed to stop AgentMD");
+      new Notice("Failed to stop Agentmd");
     }
   }
 
@@ -262,7 +262,7 @@ export default class AgentmdPlugin extends Plugin {
 
   private async runAgent(name: string, withCurrentFile: boolean): Promise<void> {
     if (!this.monitor.online) {
-      new Notice("AgentMD backend is offline.");
+      new Notice("Agentmd backend is offline.");
       return;
     }
     const args: string[] = [];
@@ -416,7 +416,7 @@ export default class AgentmdPlugin extends Plugin {
     this.statusBarEl.empty();
     const dot = this.statusBarEl.createSpan({ cls: "agentmd-status-dot" });
     const label = this.statusBarEl.createSpan();
-    label.setText("AgentMD");
+    label.setText("Agentmd");
 
     const mode = this.monitor.mode;
     const online = this.monitor.online;

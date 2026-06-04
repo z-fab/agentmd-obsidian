@@ -63,7 +63,7 @@ export class PanelView extends ItemView {
   }
 
   getViewType(): string { return VIEW_TYPE_PANEL; }
-  getDisplayText(): string { return "AgentMD"; }
+  getDisplayText(): string { return "Agentmd"; }
   getIcon(): string { return "bot"; }
 
   // Public navigation API (used by the plugin / commands).
@@ -111,15 +111,6 @@ export class PanelView extends ItemView {
     root.empty();
     root.addClass("agentmd-panel");
 
-    // Header
-    const header = root.createDiv({ cls: "agentmd-panel-header" });
-    const brand = header.createDiv({ cls: "agentmd-brand" });
-    const brandIcon = brand.createSpan({ cls: "agentmd-brand-icon" });
-    setIcon(brandIcon, "bot");
-    brand.createSpan({ cls: "agentmd-brand-text", text: "AgentMD" });
-    const dot = header.createSpan({ cls: "agentmd-status-dot", text: "●" });
-    dot.toggleClass("is-online", this.actions.isOnline());
-
     if (!this.actions.isOnline()) {
       this.stopTick();
       this.renderOffline(root);
@@ -140,6 +131,8 @@ export class PanelView extends ItemView {
 
     if (!isDetail(this.state)) {
       const footer = root.createDiv({ cls: "agentmd-panel-footer" });
+      const status = footer.createSpan({ cls: "agentmd-status-dot", text: "●" });
+      status.toggleClass("is-online", this.actions.isOnline());
       const refresh = footer.createEl("button", { cls: "agentmd-footer-btn" });
       const refreshIcon = refresh.createSpan({ cls: "agentmd-footer-btn-icon" });
       setIcon(refreshIcon, "refresh-cw");
@@ -190,12 +183,12 @@ export class PanelView extends ItemView {
     const w = root.createDiv({ cls: "agentmd-offline-state" });
     w.createDiv({ cls: "agentmd-offline-icon", text: "⚠" });
     w.createDiv({ cls: "agentmd-offline-title", text: "Backend offline" });
-    const btn = w.createEl("button", { cls: "agentmd-btn primary agentmd-offline-start-btn", text: "▶ Start AgentMD" });
+    const btn = w.createEl("button", { cls: "agentmd-btn primary agentmd-offline-start-btn", text: "▶ Start Agentmd" });
     btn.addEventListener("click", async () => {
       btn.setText("Starting…");
       btn.disabled = true;
       const ok = await this.actions.onStartBackend();
-      if (!ok) { btn.setText("▶ Start AgentMD"); btn.disabled = false; }
+      if (!ok) { btn.setText("▶ Start Agentmd"); btn.disabled = false; }
     });
   }
 
