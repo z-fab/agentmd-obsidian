@@ -10,24 +10,33 @@ export class ExecutionDetailScreen {
   private renderComponent: Component | null = null;
   private loadSeq = 0;
   private verifyCounter = 0;
+  private cachedExec: ExecutionSummary | null = null;
+  private cachedMessages: LogEntry[] = [];
 
   constructor(private ctx: PanelContext) {}
 
   render(container: HTMLElement, id: number): void {
-    if (id !== this.id) this.verifyCounter = 0;
-    this.container = container;
+    if (id !== this.id) {
+      this.verifyCounter = 0;
+      this.cachedExec = null;
+      this.cachedMessages = [];
+    }
     this.id = id;
+    this.container = container;
 
     this.renderComponent?.unload();
     this.renderComponent = new Component();
     this.renderComponent.load();
 
-    const running = this.ctx.store.running.get(id);
-    if (running) {
-      this.renderStreaming(container, running);
+    if (this.ctx.store.running.has(id)) {
+      this.renderStreaming(container, this.ctx.store.running.get(id)!);
     } else if (id > 0) {
-      container.createDiv({ cls: "agentmd-empty", text: "Carregando…" });
-      void this.fetchAndRender(id);
+      if (this.cachedExec && this.cachedExec.id === id) {
+        this.renderCompleted(container, this.cachedExec, this.cachedMessages);
+      } else {
+        container.createDiv({ cls: "agentmd-empty", text: "Carregando…" });
+        void this.fetchAndRender(id);
+      }
     } else {
       container.createDiv({ cls: "agentmd-empty", text: "No execution selected." });
     }
@@ -51,6 +60,8 @@ export class ExecutionDetailScreen {
     this.renderComponent?.unload();
     this.renderComponent = null;
     this.container = null;
+    this.cachedExec = null;
+    this.cachedMessages = [];
   }
 
   private async fetchAndRender(id: number): Promise<void> {
@@ -68,7 +79,9 @@ export class ExecutionDetailScreen {
       return;
     }
 
-    this.renderCompleted(this.container, exec, messages);
+    this.cachedExec = exec;
+    this.cachedMessages = messages ?? [];
+    this.renderCompleted(this.container, exec, this.cachedMessages);
   }
 
   // ============================================================
