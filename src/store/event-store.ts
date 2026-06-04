@@ -98,7 +98,7 @@ export class EventStore {
     if (event.type === "tool_call") {
       const name = event.data.tools?.[0]?.name ?? msg.split("(")[0] ?? "tool";
       run.lastActivity = `🔧 ${name}`;
-    } else if (event.type === "tool_result" || event.type === "tool_response") {
+    } else if (event.type === "tool_result") {
       run.lastActivity = `📎 ${event.data.tool_name ?? "result"}`;
     } else if (event.type === "ai" && msg) {
       run.lastActivity = `🤖 ${msg.slice(0, 60)}`;

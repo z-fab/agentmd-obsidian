@@ -130,6 +130,13 @@ describe("EventStore.syncRunning", () => {
     expect(newIds).toEqual([3]);
   });
 
+  it("treats tool_result as canonical for lastActivity", () => {
+    const store = new EventStore();
+    store.startExecution(1, "agent", "manual");
+    store.pushEvent(1, { type: "tool_result", id: "1", data: { tool_name: "file_read" } });
+    expect(store.running.get(1)!.lastActivity).toContain("file_read");
+  });
+
   it("returns empty array when no new executions", () => {
     const store = new EventStore();
     store.startExecution(1, "agent-a", "manual");
