@@ -49,7 +49,8 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
       status.setText("● Running");
     }
 
-    const elapsed = Math.round((Date.now() - exec.startedAt) / 1000);
+    const elapsedMs = (waiting && exec.pausedAt != null ? exec.pausedAt : Date.now()) - exec.startedAt;
+    const elapsed = Math.round(elapsedMs / 1000);
     meta.createSpan({ text: formatDuration(elapsed) });
     if (!waiting && exec.tokensTotal > 0) meta.createSpan({ text: formatTokens(exec.tokensTotal) });
     if (!waiting && exec.costUsd > 0) meta.createSpan({ text: formatCost(exec.costUsd) });

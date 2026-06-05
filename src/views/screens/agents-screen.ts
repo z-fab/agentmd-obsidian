@@ -45,7 +45,7 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
       const chip = footer.createSpan({ cls: "agentmd-chip waiting" });
       chip.style.cursor = "pointer";
       const ic = chip.createSpan();
-      setIcon(ic, "circle-pause");
+      setIcon(ic, "pause");
       chip.createSpan({ text: ` ${waitingIds.length}` });
       chip.setAttr("aria-label", `${waitingIds.length} pending response(s)`);
       chip.addEventListener("click", (e) => { e.stopPropagation(); ctx.nav.push({ kind: "execution", id: waitingIds[0] }); });

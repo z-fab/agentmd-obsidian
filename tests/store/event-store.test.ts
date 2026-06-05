@@ -212,3 +212,18 @@ describe("EventStore — syncRunning preserves waiting", () => {
     expect(store.running.get(7)!.state).toBe("waiting");
   });
 });
+
+describe("EventStore — HILT timer pause", () => {
+  it("records pausedAt on markWaiting and clears it + shifts startedAt on resume", () => {
+    const store = new EventStore();
+    store.startExecution(1, "a", "manual");
+    const run = store.running.get(1)!;
+    const started0 = run.startedAt;
+    store.markWaiting(1, { request_id: "r", kind: "confirm", message: "?", multi: false });
+    expect(run.pausedAt).toBeGreaterThan(0);
+    store.markResuming(1);
+    expect(run.pausedAt).toBeUndefined();
+    expect(run.startedAt).toBeGreaterThanOrEqual(started0);
+    expect(run.state).toBe("running");
+  });
+});

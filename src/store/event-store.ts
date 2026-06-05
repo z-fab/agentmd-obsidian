@@ -12,6 +12,8 @@ export interface RunningExecution {
   finalAnswer?: string;
   state: "running" | "waiting";
   pending?: PendingRequest;
+  /** When the execution entered `waiting` (ms). Used to freeze the elapsed timer. */
+  pausedAt?: number;
 }
 
 type Listener = () => void;
@@ -144,6 +146,7 @@ export class EventStore {
     }
     run.state = "waiting";
     run.pending = pending;
+    run.pausedAt = Date.now();
     this.notify(this.runningListeners);
   }
 
@@ -151,6 +154,10 @@ export class EventStore {
   markResuming(executionId: number): void {
     const run = this._running.get(executionId);
     if (!run) return;
+    if (run.pausedAt != null) {
+      run.startedAt += Date.now() - run.pausedAt;
+      run.pausedAt = undefined;
+    }
     run.state = "running";
     run.pending = undefined;
     this.notify(this.runningListeners);

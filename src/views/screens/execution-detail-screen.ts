@@ -110,7 +110,7 @@ export class ExecutionDetailScreen {
     });
 
     // Row 2: trigger · running · elapsed
-    const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
+    const elapsed = Math.round(((waiting && run.pausedAt != null ? run.pausedAt : Date.now()) - run.startedAt) / 1000);
     const meta = header.createDiv({ cls: "exec-meta-line" });
     meta.createSpan({ cls: "exec-meta-item", text: run.triggerSource });
     meta.createSpan({ cls: "exec-meta-sep", text: "·" });
