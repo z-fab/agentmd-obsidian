@@ -167,14 +167,17 @@ export class PanelView extends ItemView {
 
   private renderTabs(root: HTMLElement, active: TabKey): void {
     const row = root.createDiv({ cls: "agentmd-tabrow" });
-    const mk = (tab: TabKey, label: string, count?: number) => {
+    const mk = (tab: TabKey, label: string, count?: number, warn?: boolean) => {
       const b = row.createEl("button", { cls: "agentmd-tab" + (tab === active ? " active" : "") });
       b.createSpan({ text: label });
-      if (count && count > 0) b.createSpan({ cls: "agentmd-tab-count", text: String(count) });
+      if (count && count > 0) {
+        const badge = b.createSpan({ cls: "agentmd-tab-count", text: String(count) });
+        if (warn) badge.addClass("waiting");
+      }
       b.addEventListener("click", () => this.goToTab(tab));
     };
     mk("agents", "Agents", this.store.agents.length);
-    mk("live", "Live", this.store.running.size);
+    mk("live", "Live", this.store.running.size, this.store.waitingCount > 0);
     mk("history", "History");
   }
 

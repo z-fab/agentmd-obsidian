@@ -44,6 +44,7 @@
 .agentmd-status-bar.agentmd-status-offline {
   color: var(--text-faint);
 }
+.agentmd-statusbar-waiting { color: #f59e0b; font-weight: var(--font-semibold); }
 
 /* ---------- Panel header ---------- */
 .agentmd-panel-header {
@@ -107,6 +108,7 @@
   background: var(--background-modifier-border);
   color: var(--text-muted);
 }
+.agentmd-tab-count.waiting { background: rgba(245,158,11,0.22); color: #f59e0b; font-weight: var(--font-semibold); }
 
 /* ---------- Back bar ---------- */
 .agentmd-back-bar {

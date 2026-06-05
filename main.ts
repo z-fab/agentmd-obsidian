@@ -21,6 +21,7 @@ export default class AgentmdPlugin extends Plugin {
   settings!: AgentmdSettings;
   private statusBarEl!: HTMLElement;
   private unsubMonitor: (() => void) | null = null;
+  private unsubRunning: (() => void) | null = null;
   /** Map of execution ID -> SSE close function */
   private sseConnections = new Map<number, () => void>();
   /** request_ids we already showed a pause Notice for (dedup notifications). */
@@ -59,6 +60,7 @@ export default class AgentmdPlugin extends Plugin {
     this.statusBarEl.addClass("agentmd-status-bar");
     this.renderStatusBar();
     this.unsubMonitor = this.monitor.subscribe(() => this.renderStatusBar());
+    this.unsubRunning = this.store.onRunningChanged(() => this.renderStatusBar());
 
     // Status bar click -> start or stop
     this.statusBarEl.addEventListener("click", () => {
@@ -152,6 +154,7 @@ export default class AgentmdPlugin extends Plugin {
     this.globalSSE?.stop();
     this.monitor?.stop();
     this.unsubMonitor?.();
+    this.unsubRunning?.();
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
     document.body.style.removeProperty("--agentmd-accent");
@@ -516,6 +519,12 @@ export default class AgentmdPlugin extends Plugin {
       dot.setText("○");
       this.statusBarEl.removeClass("agentmd-status-online", "agentmd-status-fallback");
       this.statusBarEl.addClass("agentmd-status-offline");
+    }
+
+    const waitingN = this.store.waitingCount;
+    if (waitingN > 0) {
+      const w = this.statusBarEl.createSpan({ cls: "agentmd-statusbar-waiting", text: `  ⏸ ${waitingN}` });
+      w.setAttr("aria-label", `${waitingN} waiting for a response`);
     }
   }
 }
