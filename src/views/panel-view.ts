@@ -209,10 +209,11 @@ export class PanelView extends ItemView {
   }
 
   private updateTick(screen: Screen): void {
-    const needsTick =
-      (screen.kind === "tab" && screen.tab === "live") ||
-      (screen.kind === "execution" && this.store.running.has(screen.id));
-    if (needsTick) this.startTick(); else this.stopTick();
+    const anyRunning = [...this.store.running.values()].some((r) => r.state === "running");
+    const liveNeedsTick = screen.kind === "tab" && screen.tab === "live" && anyRunning;
+    const execNeedsTick =
+      screen.kind === "execution" && this.store.running.get(screen.id)?.state === "running";
+    if (liveNeedsTick || execNeedsTick) this.startTick(); else this.stopTick();
   }
 
   private startTick(): void {

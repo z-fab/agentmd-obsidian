@@ -1,4 +1,4 @@
-import { Component, MarkdownRenderer } from "obsidian";
+import { Component, MarkdownRenderer, setIcon } from "obsidian";
 import type { PanelContext } from "../panel-view";
 import type { RunningExecution } from "../../store/event-store";
 import type { ExecutionSummary, LogEntry, ParsedSSEEvent } from "../../types";
@@ -96,7 +96,8 @@ export class ExecutionDetailScreen {
 
     // Row 1: ● name #id                      ■ Stop
     const titleRow = header.createDiv({ cls: "exec-title" });
-    titleRow.createSpan({ cls: waiting ? "agentmd-status-waiting" : "agentmd-status-running", text: waiting ? "⏸" : "●" });
+    const statusGlyph = titleRow.createSpan({ cls: waiting ? "agentmd-status-waiting" : "agentmd-status-running" });
+    if (waiting) setIcon(statusGlyph, "circle-pause"); else statusGlyph.setText("●");
     titleRow.createSpan({ cls: "exec-name", text: ` ${run.agent}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${run.id}` });
 

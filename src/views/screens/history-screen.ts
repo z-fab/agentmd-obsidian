@@ -162,9 +162,11 @@ export class HistoryScreen {
   }
 
   private renderRow(list: HTMLElement, exec: ExecutionSummary): void {
+    const isWaiting = exec.status === "waiting";
     const isSuccess = exec.status === "success";
     const isFailed = exec.status === "failed" || exec.status === "error";
-    const state: "success" | "error" | "aborted" = isSuccess ? "success" : isFailed ? "error" : "aborted";
+    const state: "success" | "error" | "aborted" | "waiting" =
+      isWaiting ? "waiting" : isSuccess ? "success" : isFailed ? "error" : "aborted";
 
     const card = createCard(list);
     card.addEventListener("click", () => this.ctx.nav.push({ kind: "execution", id: exec.id }));
@@ -180,7 +182,9 @@ export class HistoryScreen {
 
     // Meta line: status text + duration · tokens · cost (+ error)
     const meta = card.createDiv({ cls: "agentmd-meta-line" });
-    if (isSuccess) {
+    if (isWaiting) {
+      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-waiting", text: "⏸ Waiting" });
+    } else if (isSuccess) {
       meta.createSpan({ cls: "agentmd-meta-status agentmd-status-success", text: "✓ Success" });
     } else if (isFailed) {
       meta.createSpan({ cls: "agentmd-meta-status agentmd-status-failed", text: "✗ Failed" });

@@ -56,7 +56,7 @@ export function createActionNeeded(
 
   const label = block.createDiv({ cls: "an-label" });
   const labelIcon = label.createSpan();
-  setIcon(labelIcon, "pause");
+  setIcon(labelIcon, "circle-pause");
   label.createSpan({ text: " Action needed" });
 
   block.createDiv({ cls: "an-q", text: pending.message });

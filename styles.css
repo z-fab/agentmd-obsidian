@@ -368,6 +368,7 @@
   color: var(--text-normal);
   margin-bottom: 6px;
 }
+.exec-title .agentmd-status-waiting svg { width: 16px; height: 16px; vertical-align: -3px; }
 .exec-name {
   /* inherit weight from parent */
 }
