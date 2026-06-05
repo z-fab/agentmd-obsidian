@@ -1,5 +1,5 @@
 import * as http from "node:http";
-import type { AgentDetail, AgentSummary, ExecutionSummary, InfoResponse, LogEntry, ParsedSSEEvent, RunRequest, SchedulerStatus } from "../types";
+import type { AgentDetail, AgentSummary, ExecutionSummary, InfoResponse, LogEntry, ParsedSSEEvent, PendingResponse, RunRequest, SchedulerStatus } from "../types";
 import { SSEParser } from "./sse-parser";
 
 export interface AgentmdClientOptions {
@@ -89,6 +89,23 @@ export class AgentmdClient {
   /** Cancels a running execution. */
   async cancelExecution(id: number): Promise<void> {
     await this.del(`/executions/${id}`);
+  }
+
+  /** Fetches the current pending HILT request for an execution. 404 if none. */
+  async getPending(id: number): Promise<PendingResponse> {
+    return this.get<PendingResponse>(`/executions/${id}/pending`);
+  }
+
+  /** Responds to a paused (waiting) execution. */
+  async respond(
+    id: number,
+    requestId: string,
+    response: Record<string, unknown>,
+  ): Promise<{ status: string; execution_id: number }> {
+    return this.post<{ status: string; execution_id: number }>(
+      `/executions/${id}/respond`,
+      { request_id: requestId, response },
+    );
   }
 
   /** Fetches a single agent's full detail (config + last_run + next_run). */
