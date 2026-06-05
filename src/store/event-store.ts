@@ -1,4 +1,4 @@
-import type { AgentSummary, ExecutionSummary, ParsedSSEEvent } from "../types";
+import type { AgentSummary, ExecutionSummary, ParsedSSEEvent, PendingRequest } from "../types";
 
 export interface RunningExecution {
   id: number;
@@ -10,6 +10,8 @@ export interface RunningExecution {
   tokensTotal: number;
   costUsd: number;
   finalAnswer?: string;
+  state: "running" | "waiting";
+  pending?: PendingRequest;
 }
 
 type Listener = () => void;
@@ -82,6 +84,7 @@ export class EventStore {
       lastActivity: "",
       tokensTotal: 0,
       costUsd: 0,
+      state: "running",
     });
     this.notify(this.runningListeners);
   }
@@ -113,6 +116,43 @@ export class EventStore {
       if (event.data.cost_usd != null) run.costUsd = event.data.cost_usd;
     }
 
+    this.notify(this.runningListeners);
+  }
+
+  get waitingCount(): number {
+    let n = 0;
+    for (const r of this._running.values()) if (r.state === "waiting") n++;
+    return n;
+  }
+
+  /** Mark an execution as waiting on a HILT request. Creates the entry if unknown. */
+  markWaiting(executionId: number, pending: PendingRequest, agent?: string): void {
+    let run = this._running.get(executionId);
+    if (!run) {
+      run = {
+        id: executionId,
+        agent: agent ?? "agent",
+        triggerSource: "unknown",
+        startedAt: Date.now(),
+        events: [],
+        lastActivity: "",
+        tokensTotal: 0,
+        costUsd: 0,
+        state: "running",
+      };
+      this._running.set(executionId, run);
+    }
+    run.state = "waiting";
+    run.pending = pending;
+    this.notify(this.runningListeners);
+  }
+
+  /** Move a waiting execution back to running (after a response was sent). */
+  markResuming(executionId: number): void {
+    const run = this._running.get(executionId);
+    if (!run) return;
+    run.state = "running";
+    run.pending = undefined;
     this.notify(this.runningListeners);
   }
 
@@ -172,6 +212,7 @@ export class EventStore {
           lastActivity: "",
           tokensTotal: 0,
           costUsd: 0,
+          state: "running",
         });
         newIds.push(exec.id);
         changed = true;

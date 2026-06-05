@@ -156,3 +156,47 @@ describe("EventStore.syncRunning", () => {
     expect(store.running.size).toBe(1);
   });
 });
+
+import type { PendingRequest } from "../../src/types";
+
+const PENDING: PendingRequest = { request_id: "r1", kind: "confirm", message: "Approve?", multi: false };
+
+describe("EventStore — HILT waiting", () => {
+  it("marks a tracked execution as waiting and stores the pending request", () => {
+    const store = new EventStore();
+    const cb = vi.fn();
+    store.startExecution(42, "research", "manual");
+    store.onRunningChanged(cb);
+    store.markWaiting(42, PENDING);
+    const run = store.running.get(42)!;
+    expect(run.state).toBe("waiting");
+    expect(run.pending).toEqual(PENDING);
+    expect(store.waitingCount).toBe(1);
+    expect(cb).toHaveBeenCalled();
+  });
+
+  it("creates the entry if markWaiting targets an untracked execution", () => {
+    const store = new EventStore();
+    store.markWaiting(99, { ...PENDING, request_id: "r9" }, "scheduled-agent");
+    const run = store.running.get(99)!;
+    expect(run.state).toBe("waiting");
+    expect(run.agent).toBe("scheduled-agent");
+  });
+
+  it("markResuming clears pending and returns to running", () => {
+    const store = new EventStore();
+    store.startExecution(42, "research", "manual");
+    store.markWaiting(42, PENDING);
+    store.markResuming(42);
+    const run = store.running.get(42)!;
+    expect(run.state).toBe("running");
+    expect(run.pending).toBeUndefined();
+    expect(store.waitingCount).toBe(0);
+  });
+
+  it("new running executions default to state=running", () => {
+    const store = new EventStore();
+    store.startExecution(1, "a", "manual");
+    expect(store.running.get(1)!.state).toBe("running");
+  });
+});
