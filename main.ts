@@ -329,15 +329,36 @@ export default class AgentmdPlugin extends Plugin {
         await this.openExecutionDetail(execution_id);
       }
     } catch (err) {
-      new Notice(`Failed to run ${name}: ${(err as Error).message}`);
+      const e = err as { statusCode?: number };
+      if (e.statusCode === 409) {
+        new Notice(`"${name}" is waiting for your response — answer it in the Live tab before running it again.`, 8000);
+      } else {
+        new Notice(`Failed to run ${name}: ${(err as Error).message}`);
+      }
     }
   }
 
   private async cancelExecution(id: number): Promise<void> {
+    const run = this.store.running.get(id);
+    const wasWaiting = run?.state === "waiting";
     try {
       await this.client.cancelExecution(id);
     } catch {
       // May already be finished
+    }
+    if (wasWaiting && run) {
+      // A waiting execution has no live task, so the backend won't emit a
+      // completion event — update the store ourselves.
+      if (run.pending) this.answeredRequests.add(run.pending.request_id);
+      this.store.completeExecution(id, {
+        id,
+        agent_id: run.agent,
+        status: "aborted",
+        trigger: run.triggerSource,
+        started_at: new Date(run.startedAt).toISOString(),
+      });
+      this.sseConnections.get(id)?.();
+      this.sseConnections.delete(id);
     }
   }
 

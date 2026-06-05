@@ -66,42 +66,37 @@ export function createActionNeeded(
     block.createDiv({ cls: "an-tool", text: `${pending.tool_name}${args}` });
   }
 
-  const acts = block.createDiv({ cls: "an-acts" });
-
   let sent = false;
   const submit = (body: Record<string, unknown>) => {
     if (sent) return;
     sent = true;
-    // disable all buttons + inputs in the block, show a sending hint
-    block.querySelectorAll("button, input").forEach((el) => ((el as HTMLButtonElement | HTMLInputElement).disabled = true));
-    acts.createSpan({ cls: "an-sending", text: "Sending…" });
+    block.querySelectorAll("button, input").forEach(
+      (el) => ((el as HTMLButtonElement | HTMLInputElement).disabled = true),
+    );
+    block.createSpan({ cls: "an-sending", text: "Sending…" });
     onRespond(body);
   };
 
   if (pending.kind === "confirm") {
-    let reasonInput: HTMLInputElement | null = null;
+    const reason = block.createEl("input", { cls: "agentmd-input an-reason" }) as HTMLInputElement;
+    reason.placeholder = "Reason for denying (optional)";
+    const acts = block.createDiv({ cls: "an-acts" });
     const approve = acts.createEl("button", { cls: "agentmd-btn primary", text: "✓ Approve" });
     approve.addEventListener("click", () => submit(buildRespondBody("confirm", { approved: true })));
     const deny = acts.createEl("button", { cls: "agentmd-btn danger", text: "✕ Deny" });
     deny.addEventListener("click", () =>
-      submit(buildRespondBody("confirm", { approved: false, reason: reasonInput?.value || undefined })),
+      submit(buildRespondBody("confirm", { approved: false, reason: reason.value || undefined })),
     );
-    const addReason = acts.createEl("button", { cls: "agentmd-btn ghost", text: "＋ reason" });
-    addReason.addEventListener("click", () => {
-      if (reasonInput) return;
-      reasonInput = block.createEl("input", { cls: "agentmd-input" }) as HTMLInputElement;
-      reasonInput.placeholder = "Reason (optional) — sent with Deny";
-      reasonInput.focus();
-    });
   } else if (pending.kind === "input") {
+    const acts = block.createDiv({ cls: "an-acts" });
     const input = acts.createEl("input", { cls: "agentmd-input" }) as HTMLInputElement;
     input.placeholder = "Type your answer…";
     const send = acts.createEl("button", { cls: "agentmd-btn primary", text: "Send" });
-    const doSubmit = () => submit(buildRespondBody("input", { text: input.value }));
-    send.addEventListener("click", doSubmit);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSubmit(); });
+    const go = () => submit(buildRespondBody("input", { text: input.value }));
+    send.addEventListener("click", go);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   } else {
-    // choice
+    const acts = block.createDiv({ cls: "an-acts" });
     const options = pending.options ?? [];
     const selected = new Set<string>();
     if (!pending.multi) {
