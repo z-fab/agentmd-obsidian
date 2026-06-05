@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import type { PanelContext } from "../panel-view";
 import type { AgentDetail, ExecutionSummary } from "../../types";
 import { createEmojiBox, createChip, createStopPill } from "../../ui/cards";
@@ -67,17 +68,21 @@ export class AgentDetailScreen {
     this.renderConfig(container);
   }
 
-  /** Find the running execution id for this agent, if any. */
-  private findRunningId(): number | null {
+  /** Find this agent's active executions, split into running vs waiting. */
+  private findActive(): { runningId: number | null; waitingIds: number[] } {
+    let runningId: number | null = null;
+    const waitingIds: number[] = [];
     for (const [id, run] of this.ctx.store.running) {
-      if (run.agent === this.name) return id;
+      if (run.agent !== this.name) continue;
+      if (run.state === "waiting") waitingIds.push(id);
+      else if (runningId === null) runningId = id;
     }
-    return null;
+    return { runningId, waitingIds };
   }
 
   private renderHeader(container: HTMLElement): void {
     const d = this.detail!;
-    const runningId = this.findRunningId();
+    const { runningId, waitingIds } = this.findActive();
     const header = container.createDiv({ cls: "agent-detail-header" });
 
     // Row 1: emoji box + name
@@ -109,6 +114,15 @@ export class AgentDetailScreen {
     // Row 4: action buttons
     const actions = header.createDiv({ cls: "agent-detail-actions" });
 
+    if (waitingIds.length > 0) {
+      const chip = actions.createSpan({ cls: "agentmd-chip waiting" });
+      chip.style.cursor = "pointer";
+      const ic = chip.createSpan();
+      setIcon(ic, "pause");
+      chip.createSpan({ text: ` ${waitingIds.length}` });
+      chip.setAttr("aria-label", `${waitingIds.length} pending response(s)`);
+      chip.addEventListener("click", () => this.ctx.nav.push({ kind: "execution", id: waitingIds[0] }));
+    }
     if (runningId !== null) {
       createChip(actions, `● Running #${runningId}`, "running");
       createStopPill(actions, () => this.ctx.actions.onCancelExecution(runningId));
@@ -167,8 +181,9 @@ export class AgentDetailScreen {
       row.addEventListener("click", () => this.ctx.nav.push({ kind: "execution", id: run.id }));
 
       const line1 = row.createDiv({ cls: "exec-row-line1" });
-      const icon = run.status === "success" ? "✓" : run.status === "failed" || run.status === "error" ? "✗" : "⚠";
-      const cls = run.status === "success" ? "agentmd-status-success" : run.status === "failed" || run.status === "error" ? "agentmd-status-failed" : "agentmd-status-aborted";
+      const isWaiting = run.status === "waiting";
+      const icon = isWaiting ? "⏸" : run.status === "success" ? "✓" : run.status === "failed" || run.status === "error" ? "✗" : "⚠";
+      const cls = isWaiting ? "agentmd-status-waiting" : run.status === "success" ? "agentmd-status-success" : run.status === "failed" || run.status === "error" ? "agentmd-status-failed" : "agentmd-status-aborted";
       line1.createSpan({ cls, text: icon });
       line1.createSpan({ cls: "exec-row-id", text: ` #${run.id}` });
       if (run.trigger && run.trigger !== "manual") {
