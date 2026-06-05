@@ -130,14 +130,19 @@ export class ExecutionDetailScreen {
     logWrapper.createDiv({ cls: "exec-log-title", text: "Execution Log" });
     const log = logWrapper.createDiv({ cls: "exec-log" });
 
-    for (const event of run.events) {
-      this.renderLogEvent(log, event);
+    if (waiting) {
+      // Paused: render the persisted, ordered log from the backend (not the live
+      // run.events array, which is empty after reload and duplicated after resubscribe).
+      void this.fillWaitingLog(log, run.id);
+    } else {
+      for (const event of run.events) {
+        this.renderLogEvent(log, event);
+      }
+      log.createSpan({ cls: "log-cursor", text: "▌" });
+      requestAnimationFrame(() => {
+        log.scrollTop = log.scrollHeight;
+      });
     }
-    log.createSpan({ cls: "log-cursor", text: "▌" });
-
-    requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
-    });
   }
 
   // ============================================================
@@ -153,24 +158,7 @@ export class ExecutionDetailScreen {
     const snapshot = this.ctx.store.getCompletedSnapshot(exec.id);
 
     // Convert API messages to ParsedSSEEvent format (if no live snapshot)
-    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? (apiMessages ?? []).map((m) => {
-      const data: Record<string, unknown> = { event_type: m.event_type, message: m.message };
-      // Parse "tool_name — result" format from DB replay
-      if ((m.event_type === "tool_response" || m.event_type === "tool_result") && m.message.includes(" — ")) {
-        const sep = m.message.indexOf(" — ");
-        data.tool_name = m.message.slice(0, sep);
-        data.message = m.message.slice(sep + 3);
-      }
-      // Parse "tool_name — args: {...}" format for tool_call from DB replay
-      if (m.event_type === "tool_call" && m.message.includes(" — args: ")) {
-        const sep = m.message.indexOf(" — args: ");
-        const toolName = m.message.slice(0, sep);
-        const argsStr = m.message.slice(sep + 9);
-        data.tools = [{ name: toolName, args: argsStr }];
-        data.message = m.message;
-      }
-      return { type: m.event_type, id: String(m.id), data } as ParsedSSEEvent;
-    });
+    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? this.messagesToEvents(apiMessages ?? []);
 
     // Extract final answer from snapshot or from API messages
     const finalAnswerFromLog = logEvents
@@ -270,6 +258,40 @@ export class ExecutionDetailScreen {
   // ============================================================
   //  HELPERS
   // ============================================================
+
+  private messagesToEvents(apiMessages: LogEntry[]): ParsedSSEEvent[] {
+    return apiMessages.map((m) => {
+      const data: Record<string, unknown> = { event_type: m.event_type, message: m.message };
+      if ((m.event_type === "tool_response" || m.event_type === "tool_result") && m.message.includes(" — ")) {
+        const sep = m.message.indexOf(" — ");
+        data.tool_name = m.message.slice(0, sep);
+        data.message = m.message.slice(sep + 3);
+      }
+      if (m.event_type === "tool_call" && m.message.includes(" — args: ")) {
+        const sep = m.message.indexOf(" — args: ");
+        const toolName = m.message.slice(0, sep);
+        const argsStr = m.message.slice(sep + 9);
+        data.tools = [{ name: toolName, args: argsStr }];
+        data.message = m.message;
+      }
+      return { type: m.event_type, id: String(m.id), data } as ParsedSSEEvent;
+    });
+  }
+
+  private async fillWaitingLog(logEl: HTMLElement, id: number): Promise<void> {
+    logEl.createDiv({ cls: "log-line", text: "Loading…" });
+    let messages: LogEntry[] = [];
+    try {
+      messages = await this.ctx.actions.fetchExecutionMessages(id);
+    } catch {
+      /* offline */
+    }
+    if (!logEl.isConnected) return; // detached (user navigated away)
+    logEl.empty();
+    for (const e of this.messagesToEvents(messages)) {
+      this.renderLogEvent(logEl, e);
+    }
+  }
 
   private fmtNum(n: number): string {
     if (n < 1000) return String(n);
