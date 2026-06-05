@@ -44,7 +44,8 @@
 .agentmd-status-bar.agentmd-status-offline {
   color: var(--text-faint);
 }
-.agentmd-statusbar-waiting { color: #f59e0b; font-weight: var(--font-semibold); }
+.agentmd-statusbar-waiting { color: #f59e0b; font-weight: var(--font-semibold); margin-left: 8px; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+.agentmd-statusbar-waiting svg { width: 12px; height: 12px; }
 
 /* ---------- Panel header ---------- */
 .agentmd-panel-header {
@@ -137,6 +138,8 @@
 .agentmd-chip.scheduled { background: rgba(251,191,36,0.14); color: #fbbf24; }
 .agentmd-chip.watch     { background: rgba(6,182,212,0.14);  color: #06b6d4; }
 .agentmd-chip.manual    { background: var(--background-secondary); color: var(--text-faint); }
+.agentmd-chip.waiting { background: rgba(245,158,11,0.16); color: #f59e0b; font-weight: var(--font-semibold); }
+.agentmd-chip.waiting svg { width: 11px; height: 11px; vertical-align: -1px; }
 .agentmd-chip.model     { background: transparent; color: var(--text-faint); border: 1px solid var(--background-modifier-border); }
 
 /* ---------- Action buttons ---------- */
@@ -206,12 +209,12 @@
 }
 
 .agentmd-card.is-waiting {
-  border-color: rgba(245,158,11,0.55);
-  animation: agentmd-wait-pulse 2s ease-in-out infinite;
+  border-color: #f59e0b;
+  animation: agentmd-wait-pulse 2.6s ease-in-out infinite;
 }
 @keyframes agentmd-wait-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(245,158,11,0.45), 0 0 7px rgba(245,158,11,0.16); border-color: rgba(245,158,11,0.6); }
-  50%      { box-shadow: 0 0 0 1px rgba(245,158,11,0.12), 0 0 0 rgba(245,158,11,0); border-color: rgba(245,158,11,0.22); }
+  0%, 100% { border-color: rgba(245,158,11,0.85); }
+  50%      { border-color: rgba(245,158,11,0.25); }
 }
 
 /* ---------- Emoji box ---------- */
@@ -232,11 +235,7 @@
   0%, 100% { background: rgba(59,130,246,0.16); }
   50% { background: rgba(59,130,246,0.40); }
 }
-.agentmd-emoji-box.is-waiting { animation: agentmd-wepulse 2.8s ease-in-out infinite; }
-@keyframes agentmd-wepulse {
-  0%, 100% { background: rgba(245,158,11,0.16); }
-  50% { background: rgba(245,158,11,0.40); }
-}
+.agentmd-emoji-box.is-waiting { background: rgba(245,158,11,0.22); }
 .agentmd-emoji-box.is-success { background: rgba(16,185,129,0.22); }
 .agentmd-emoji-box.is-error   { background: rgba(239,68,68,0.22); }
 .agentmd-emoji-box.is-aborted { background: rgba(245,158,11,0.22); }

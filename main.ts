@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { Notice, Plugin, setIcon } from "obsidian";
 import { AgentmdClient } from "./src/client/agentmd-client";
 import { GlobalSSEConnection } from "./src/client/global-sse";
 import { BackendMonitor } from "./src/backend-monitor";
@@ -523,7 +523,10 @@ export default class AgentmdPlugin extends Plugin {
 
     const waitingN = this.store.waitingCount;
     if (waitingN > 0) {
-      const w = this.statusBarEl.createSpan({ cls: "agentmd-statusbar-waiting", text: `  ⏸ ${waitingN}` });
+      const w = this.statusBarEl.createSpan({ cls: "agentmd-statusbar-waiting" });
+      const ic = w.createSpan({ cls: "agentmd-statusbar-waiting-icon" });
+      setIcon(ic, "pause");
+      w.createSpan({ text: String(waitingN) });
       w.setAttr("aria-label", `${waitingN} waiting for a response`);
       w.addEventListener("click", (e) => { e.stopPropagation(); void this.activatePanel("live"); });
     }

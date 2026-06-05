@@ -51,7 +51,7 @@ export class ExecutionDetailScreen {
     if (this.verifyCounter % 3 !== 0) return;
     void (async () => {
       const exec = await this.ctx.actions.fetchExecution(this.id);
-      if (exec && exec.status !== "running" && exec.status !== "pending") {
+      if (exec && exec.status !== "running" && exec.status !== "pending" && exec.status !== "waiting") {
         this.ctx.store.completeExecution(this.id, exec);
       }
     })();

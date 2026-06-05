@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import type { PanelContext } from "../panel-view";
 import { createCard, createEmojiBox, createChip, createStopPill, createEmptyState } from "../../ui/cards";
 
@@ -15,18 +16,22 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
 
   for (const agent of ctx.store.agents) {
     // Determine running state
+    const waitingIds: number[] = [];
     let runningId: number | null = null;
     for (const [id, r] of ctx.store.running) {
-      if (r.agent === agent.name) { runningId = id; break; }
+      if (r.agent !== agent.name) continue;
+      if (r.state === "waiting") waitingIds.push(id);
+      else if (runningId === null) runningId = id;
     }
-    const isRunning = runningId !== null;
+    const isWaiting = waitingIds.length > 0;
+    const isRunning = !isWaiting && runningId !== null;
 
-    const card = createCard(list, { running: isRunning });
+    const card = createCard(list, { running: isRunning, waiting: isWaiting });
     card.addEventListener("click", () => ctx.nav.push({ kind: "agent", name: agent.name }));
 
     // Name row: emoji box + agent name
     const nameRow = card.createDiv({ cls: "agentmd-card-row" });
-    createEmojiBox(nameRow, agent.icon || "🤖", isRunning ? "running" : undefined);
+    createEmojiBox(nameRow, agent.icon || "🤖", isWaiting ? "waiting" : isRunning ? "running" : undefined);
     nameRow.createSpan({ cls: "agentmd-card-name", text: agent.name });
 
     // Description
@@ -37,7 +42,15 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
     // Footer row
     const footer = card.createDiv({ cls: "agentmd-card-footer" });
 
-    if (isRunning) {
+    if (isWaiting) {
+      const chip = footer.createSpan({ cls: "agentmd-chip waiting" });
+      chip.style.cursor = "pointer";
+      const ic = chip.createSpan();
+      setIcon(ic, "pause");
+      chip.createSpan({ text: ` ${waitingIds.length}` });
+      chip.setAttr("aria-label", `${waitingIds.length} pending response(s)`);
+      chip.addEventListener("click", (e) => { e.stopPropagation(); ctx.nav.push({ kind: "execution", id: waitingIds[0] }); });
+    } else if (isRunning) {
       createChip(footer, "● Running #" + runningId, "running");
       createStopPill(footer, () => ctx.actions.onCancelExecution(runningId!));
     } else {
