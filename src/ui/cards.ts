@@ -68,13 +68,23 @@ export function createActionNeeded(
 
   const acts = block.createDiv({ cls: "an-acts" });
 
+  let sent = false;
+  const submit = (body: Record<string, unknown>) => {
+    if (sent) return;
+    sent = true;
+    // disable all buttons + inputs in the block, show a sending hint
+    block.querySelectorAll("button, input").forEach((el) => ((el as HTMLButtonElement | HTMLInputElement).disabled = true));
+    acts.createSpan({ cls: "an-sending", text: "Sending…" });
+    onRespond(body);
+  };
+
   if (pending.kind === "confirm") {
     let reasonInput: HTMLInputElement | null = null;
     const approve = acts.createEl("button", { cls: "agentmd-btn primary", text: "✓ Approve" });
-    approve.addEventListener("click", () => onRespond(buildRespondBody("confirm", { approved: true })));
+    approve.addEventListener("click", () => submit(buildRespondBody("confirm", { approved: true })));
     const deny = acts.createEl("button", { cls: "agentmd-btn danger", text: "✕ Deny" });
     deny.addEventListener("click", () =>
-      onRespond(buildRespondBody("confirm", { approved: false, reason: reasonInput?.value || undefined })),
+      submit(buildRespondBody("confirm", { approved: false, reason: reasonInput?.value || undefined })),
     );
     const addReason = acts.createEl("button", { cls: "agentmd-btn ghost", text: "＋ reason" });
     addReason.addEventListener("click", () => {
@@ -87,9 +97,9 @@ export function createActionNeeded(
     const input = acts.createEl("input", { cls: "agentmd-input" }) as HTMLInputElement;
     input.placeholder = "Type your answer…";
     const send = acts.createEl("button", { cls: "agentmd-btn primary", text: "Send" });
-    const submit = () => onRespond(buildRespondBody("input", { text: input.value }));
-    send.addEventListener("click", submit);
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    const doSubmit = () => submit(buildRespondBody("input", { text: input.value }));
+    send.addEventListener("click", doSubmit);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSubmit(); });
   } else {
     // choice
     const options = pending.options ?? [];
@@ -97,7 +107,7 @@ export function createActionNeeded(
     if (!pending.multi) {
       for (const opt of options) {
         const chip = acts.createSpan({ cls: "agentmd-chip", text: opt });
-        chip.addEventListener("click", () => onRespond(buildRespondBody("choice", { selected: [opt] })));
+        chip.addEventListener("click", () => submit(buildRespondBody("choice", { selected: [opt] })));
       }
     } else {
       for (const opt of options) {
@@ -110,7 +120,7 @@ export function createActionNeeded(
       const send = acts.createEl("button", { cls: "agentmd-btn primary", text: "Send" });
       send.addEventListener("click", () => {
         if (selected.size === 0) return;
-        onRespond(buildRespondBody("choice", { selected: [...selected] }));
+        submit(buildRespondBody("choice", { selected: [...selected] }));
       });
     }
   }

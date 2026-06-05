@@ -200,3 +200,15 @@ describe("EventStore — HILT waiting", () => {
     expect(store.running.get(1)!.state).toBe("running");
   });
 });
+
+describe("EventStore — syncRunning preserves waiting", () => {
+  it("does not remove a waiting execution that is absent from the running list", () => {
+    const store = new EventStore();
+    store.startExecution(7, "a", "manual");
+    store.markWaiting(7, { request_id: "r", kind: "confirm", message: "?", multi: false });
+    // a sync of status=running executions that does NOT include #7
+    store.syncRunning([]);
+    expect(store.running.has(7)).toBe(true);
+    expect(store.running.get(7)!.state).toBe("waiting");
+  });
+});

@@ -192,9 +192,9 @@ export class EventStore {
     const newIds: number[] = [];
     let changed = false;
 
-    // Remove stale entries
-    for (const id of this._running.keys()) {
-      if (!apiIds.has(id)) {
+    // Remove stale entries (preserve waiting executions — they are not in the status=running list)
+    for (const [id, run] of this._running) {
+      if (!apiIds.has(id) && run.state !== "waiting") {
         this._running.delete(id);
         changed = true;
       }

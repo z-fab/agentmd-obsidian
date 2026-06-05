@@ -464,6 +464,7 @@
 .exec-action-needed .an-q { color: var(--text-normal); font-size: var(--font-ui-small); line-height: 1.6; font-weight: var(--font-semibold); margin-bottom: 9px; }
 .exec-action-needed .an-tool { font-family: var(--font-monospace); font-size: 11px; color: var(--text-faint); background: var(--background-primary-alt); padding: 7px 9px; border-radius: 5px; margin-bottom: 12px; word-break: break-word; }
 .exec-action-needed .an-acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.exec-action-needed .an-sending { color: var(--text-faint); font-size: var(--font-ui-smaller); margin-left: 4px; }
 .agentmd-btn.danger { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.45); color: #f08a8a; }
 .agentmd-btn.ghost { background: transparent; color: var(--text-faint); }
 .agentmd-input { flex: 1; min-width: 150px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 5px 9px; color: var(--text-normal); font-size: var(--font-ui-smaller); }

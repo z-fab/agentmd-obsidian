@@ -525,6 +525,7 @@ export default class AgentmdPlugin extends Plugin {
     if (waitingN > 0) {
       const w = this.statusBarEl.createSpan({ cls: "agentmd-statusbar-waiting", text: `  ⏸ ${waitingN}` });
       w.setAttr("aria-label", `${waitingN} waiting for a response`);
+      w.addEventListener("click", (e) => { e.stopPropagation(); void this.activatePanel("live"); });
     }
   }
 }
