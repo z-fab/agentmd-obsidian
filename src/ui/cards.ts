@@ -14,20 +14,21 @@ export function createEmptyState(
 }
 
 /** Create the elevated card container. Add `running` to apply the spinning border. */
-export function createCard(parent: HTMLElement, opts?: { running?: boolean }): HTMLElement {
+export function createCard(parent: HTMLElement, opts?: { running?: boolean; waiting?: boolean }): HTMLElement {
   const card = parent.createDiv({ cls: "agentmd-card" });
   if (opts?.running) card.addClass("is-running");
+  if (opts?.waiting) card.addClass("is-waiting");
   return card;
 }
 
 /**
  * Create the emoji-box. `state` colors the box:
- * - "running" → pulsing blue, "success"/"error"/"aborted" → status tint, undefined → neutral.
+ * - "running" → pulsing blue, "waiting" → pulsing orange, "success"/"error"/"aborted" → status tint, undefined → neutral.
  */
 export function createEmojiBox(
   parent: HTMLElement,
   emoji: string,
-  state?: "running" | "success" | "error" | "aborted",
+  state?: "running" | "waiting" | "success" | "error" | "aborted",
 ): HTMLElement {
   const box = parent.createSpan({ cls: "agentmd-emoji-box", text: emoji });
   if (state) box.addClass(`is-${state}`);

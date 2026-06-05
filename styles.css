@@ -8,6 +8,7 @@
 .agentmd-status-success  { color: #10b981; }
 .agentmd-status-failed   { color: #ef4444; }
 .agentmd-status-aborted  { color: #f59e0b; }
+.agentmd-status-waiting   { color: #f59e0b; }
 .agentmd-trigger-manual    { color: #888888; }
 .agentmd-trigger-scheduler { color: #fbbf24; }
 .agentmd-trigger-watch     { color: #06b6d4; }
@@ -202,6 +203,15 @@
   .agentmd-card.is-running { border-color: rgba(59,130,246,0.6); }
 }
 
+.agentmd-card.is-waiting {
+  border-color: rgba(245,158,11,0.55);
+  animation: agentmd-wait-pulse 2s ease-in-out infinite;
+}
+@keyframes agentmd-wait-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(245,158,11,0.45), 0 0 7px rgba(245,158,11,0.16); border-color: rgba(245,158,11,0.6); }
+  50%      { box-shadow: 0 0 0 1px rgba(245,158,11,0.12), 0 0 0 rgba(245,158,11,0); border-color: rgba(245,158,11,0.22); }
+}
+
 /* ---------- Emoji box ---------- */
 .agentmd-emoji-box {
   width: 26px;
@@ -219,6 +229,11 @@
 @keyframes agentmd-epulse {
   0%, 100% { background: rgba(59,130,246,0.16); }
   50% { background: rgba(59,130,246,0.40); }
+}
+.agentmd-emoji-box.is-waiting { animation: agentmd-wepulse 2.8s ease-in-out infinite; }
+@keyframes agentmd-wepulse {
+  0%, 100% { background: rgba(245,158,11,0.16); }
+  50% { background: rgba(245,158,11,0.40); }
 }
 .agentmd-emoji-box.is-success { background: rgba(16,185,129,0.22); }
 .agentmd-emoji-box.is-error   { background: rgba(239,68,68,0.22); }
