@@ -289,6 +289,7 @@
   font-family: var(--font-monospace);
 }
 .agentmd-meta-line .agentmd-meta-status { font-weight: var(--font-semibold); }
+.agentmd-meta-status svg { width: 12px; height: 12px; vertical-align: -2px; }
 
 .agentmd-activity {
   margin-top: 7px;
