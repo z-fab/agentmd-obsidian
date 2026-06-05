@@ -13,6 +13,7 @@ import type { AgentDetail, ExecutionSummary, LogEntry } from "../types";
 export interface PanelActions {
   onRunAgent: (name: string, withFile: boolean) => void;
   onCancelExecution: (id: number) => void;
+  onRespond: (id: number, requestId: string, response: Record<string, unknown>) => void;
   onRefreshAgents: () => void;
   onOpenSourceFile: (name: string) => void;
   onRerun: (name: string) => void;

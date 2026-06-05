@@ -3,6 +3,7 @@ import type { PanelContext } from "../panel-view";
 import type { RunningExecution } from "../../store/event-store";
 import type { ExecutionSummary, LogEntry, ParsedSSEEvent } from "../../types";
 import { formatDuration, formatCost } from "../../ui/format";
+import { createActionNeeded } from "../../ui/cards";
 
 export class ExecutionDetailScreen {
   private container: HTMLElement | null = null;
@@ -90,11 +91,12 @@ export class ExecutionDetailScreen {
   // ============================================================
 
   private renderStreaming(container: HTMLElement, run: RunningExecution): void {
-    const header = container.createDiv({ cls: "exec-header streaming" });
+    const waiting = run.state === "waiting";
+    const header = container.createDiv({ cls: waiting ? "exec-header waiting" : "exec-header streaming" });
 
     // Row 1: ● name #id                      ■ Stop
     const titleRow = header.createDiv({ cls: "exec-title" });
-    titleRow.createSpan({ cls: "agentmd-status-running", text: "●" });
+    titleRow.createSpan({ cls: waiting ? "agentmd-status-waiting" : "agentmd-status-running", text: waiting ? "⏸" : "●" });
     titleRow.createSpan({ cls: "exec-name", text: ` ${run.agent}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${run.id}` });
 
@@ -111,9 +113,16 @@ export class ExecutionDetailScreen {
     const meta = header.createDiv({ cls: "exec-meta-line" });
     meta.createSpan({ cls: "exec-meta-item", text: run.triggerSource });
     meta.createSpan({ cls: "exec-meta-sep", text: "·" });
-    meta.createSpan({ cls: "exec-meta-item agentmd-status-running", text: "running" });
+    meta.createSpan({ cls: waiting ? "exec-meta-item agentmd-status-waiting" : "exec-meta-item agentmd-status-running", text: waiting ? "waiting" : "running" });
     meta.createSpan({ cls: "exec-meta-sep", text: "·" });
     meta.createSpan({ cls: "exec-meta-item", text: formatDuration(elapsed) });
+
+    if (waiting && run.pending) {
+      const pending = run.pending;
+      createActionNeeded(container, pending, (body) => {
+        this.ctx.actions.onRespond(run.id, pending.request_id, body);
+      });
+    }
 
     // Log area
     const logWrapper = container.createDiv({ cls: "exec-log-wrapper" });

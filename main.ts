@@ -68,6 +68,7 @@ export default class AgentmdPlugin extends Plugin {
       new PanelView(leaf, this.store, {
         onRunAgent: (name, withFile) => this.runAgent(name, withFile),
         onCancelExecution: (id) => this.cancelExecution(id),
+        onRespond: () => { /* wired in HILT main task */ },
         onRefreshAgents: () => void this.refreshAgents(),
         onOpenSourceFile: (name) => this.openSourceFile(name),
         onRerun: (name) => this.runAgent(name, false),
