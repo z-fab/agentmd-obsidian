@@ -17,7 +17,7 @@ export class BackendMonitor {
   private readonly client: HealthProvider;
   private readonly intervalMs: number;
   private listeners = new Set<OnlineListener>();
-  private fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  private fallbackTimer: number | null = null;
   private fallbackRunning = false;
 
   constructor(options: BackendMonitorOptions) {
@@ -57,7 +57,7 @@ export class BackendMonitor {
     if (this.fallbackRunning) return;
     this._mode = "fallback";
     this.fallbackRunning = true;
-    this.fallbackTimer = setTimeout(() => {
+    this.fallbackTimer = window.setTimeout(() => {
       void this.fallbackTick();
     }, 0);
   }
@@ -66,7 +66,7 @@ export class BackendMonitor {
   deactivateFallback(): void {
     this.fallbackRunning = false;
     if (this.fallbackTimer != null) {
-      clearTimeout(this.fallbackTimer);
+      window.clearTimeout(this.fallbackTimer);
       this.fallbackTimer = null;
     }
   }
@@ -92,7 +92,7 @@ export class BackendMonitor {
     }
 
     if (!this.fallbackRunning) return;
-    this.fallbackTimer = setTimeout(() => {
+    this.fallbackTimer = window.setTimeout(() => {
       void this.fallbackTick();
     }, this.intervalMs);
   }

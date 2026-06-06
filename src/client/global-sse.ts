@@ -25,8 +25,8 @@ export class GlobalSSEConnection {
   private readonly heartbeatTimeoutMs: number;
 
   private closeSSE: (() => void) | null = null;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectTimer: number | null = null;
+  private heartbeatTimer: number | null = null;
   private reconnectAttempts = 0;
   private _state: GlobalSSEState = "offline";
   private active = false;
@@ -156,7 +156,7 @@ export class GlobalSSEConnection {
     const idx = Math.min(this.reconnectAttempts - 1, this.backoffMs.length - 1);
     const delay = this.backoffMs[Math.max(0, idx)];
 
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       if (this.active) this.connect();
     }, delay);
@@ -164,7 +164,7 @@ export class GlobalSSEConnection {
 
   private resetHeartbeatTimer(): void {
     this.clearHeartbeatTimer();
-    this.heartbeatTimer = setTimeout(() => {
+    this.heartbeatTimer = window.setTimeout(() => {
       this.heartbeatTimer = null;
       // No event received within timeout - connection is dead
       if (this.active && this._state === "connected") {
@@ -175,14 +175,14 @@ export class GlobalSSEConnection {
 
   private clearReconnectTimer(): void {
     if (this.reconnectTimer != null) {
-      clearTimeout(this.reconnectTimer);
+      window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
   }
 
   private clearHeartbeatTimer(): void {
     if (this.heartbeatTimer != null) {
-      clearTimeout(this.heartbeatTimer);
+      window.clearTimeout(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
   }

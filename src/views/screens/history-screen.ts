@@ -179,8 +179,7 @@ export class HistoryScreen {
     row.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
     if (isWaiting) createWaitingPill(row, "Waiting");
     else createResultPill(row, isSuccess ? "success" : isFailed ? "failed" : "aborted");
-    const time = row.createSpan({ cls: "exec-row-time", text: formatRelativeTime(exec.started_at) });
-    time.style.marginLeft = "auto";
+    row.createSpan({ cls: "exec-row-time", text: formatRelativeTime(exec.started_at) });
 
     // Meta line: duration · tokens · cost (+ error)
     const meta = card.createDiv({ cls: "agentmd-meta-line" });

@@ -56,7 +56,7 @@ export class PanelView extends ItemView {
   private agentDetail!: AgentDetailScreen;
   private execDetail!: ExecutionDetailScreen;
   private ctx!: PanelContext;
-  private tick: ReturnType<typeof setInterval> | null = null;
+  private tick: number | null = null;
   private unsubs: Array<() => void> = [];
 
   constructor(leaf: WorkspaceLeaf, private store: EventStore, private actions: PanelActions) {
@@ -191,11 +191,12 @@ export class PanelView extends ItemView {
       text: "The Agentmd backend isn't running. If it's already installed, start it with the button below — or run “agentmd start” in a terminal.",
     });
     const btn = w.createEl("button", { cls: "agentmd-btn primary agentmd-offline-start-btn", text: "▶ Start Agentmd" });
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       btn.setText("Starting…");
       btn.disabled = true;
-      const ok = await this.actions.onStartBackend();
-      if (!ok) { btn.setText("▶ Start Agentmd"); btn.disabled = false; }
+      void this.actions.onStartBackend().then((ok) => {
+        if (!ok) { btn.setText("▶ Start Agentmd"); btn.disabled = false; }
+      });
     });
     const help = w.createDiv({ cls: "agentmd-offline-help" });
     help.createSpan({ text: "Don't have it yet? " });
@@ -218,7 +219,7 @@ export class PanelView extends ItemView {
 
   private startTick(): void {
     if (this.tick) return;
-    this.tick = setInterval(() => {
+    this.tick = window.setInterval(() => {
       const screen = currentScreen(this.state);
       if (screen.kind === "execution" && this.store.running.has(screen.id)) {
         this.execDetail.verifyStillRunning();
@@ -228,6 +229,6 @@ export class PanelView extends ItemView {
   }
 
   private stopTick(): void {
-    if (this.tick) { clearInterval(this.tick); this.tick = null; }
+    if (this.tick) { window.clearInterval(this.tick); this.tick = null; }
   }
 }

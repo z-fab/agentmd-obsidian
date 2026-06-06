@@ -1,4 +1,5 @@
-import { Notice, Plugin, setIcon } from "obsidian";
+import { FileSystemAdapter, Notice, Plugin, TFile, setIcon } from "obsidian";
+import { shell } from "electron";
 import { AgentmdClient } from "./src/client/agentmd-client";
 import { GlobalSSEConnection } from "./src/client/global-sse";
 import { BackendMonitor } from "./src/backend-monitor";
@@ -30,7 +31,7 @@ export default class AgentmdPlugin extends Plugin {
   private answeredRequests = new Set<string>();
 
   async onload(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<AgentmdSettings> | null);
 
     this.client = new AgentmdClient({ socketPath: this.settings.socketPath });
     this.store = new EventStore();
@@ -74,12 +75,12 @@ export default class AgentmdPlugin extends Plugin {
     // Register the single panel view
     this.registerView(VIEW_TYPE_PANEL, (leaf) =>
       new PanelView(leaf, this.store, {
-        onRunAgent: (name, withFile) => this.runAgent(name, withFile),
-        onCancelExecution: (id) => this.cancelExecution(id),
+        onRunAgent: (name, withFile) => void this.runAgent(name, withFile),
+        onCancelExecution: (id) => void this.cancelExecution(id),
         onRespond: (id, requestId, response) => void this.respondToExecution(id, requestId, response),
         onRefreshAgents: () => void this.refreshAgents(),
-        onOpenSourceFile: (name) => this.openSourceFile(name),
-        onRerun: (name) => this.runAgent(name, false),
+        onOpenSourceFile: (name) => void this.openSourceFile(name),
+        onRerun: (name) => void this.runAgent(name, false),
         getCurrentFilePath: () => this.getCurrentFilePath(),
         isOnline: () => this.monitor.online,
         onOnlineChanged: (cb) => this.monitor.subscribe(() => cb()),
@@ -93,7 +94,7 @@ export default class AgentmdPlugin extends Plugin {
     );
 
     // Commands
-    this.addCommand({ id: "open-panel", name: "Open Agentmd panel", callback: () => void this.activatePanel() });
+    this.addCommand({ id: "open-panel", name: "Open panel", callback: () => void this.activatePanel() });
     this.addCommand({ id: "open-live", name: "Open Live", callback: () => void this.activatePanel("live") });
     this.addCommand({ id: "open-history", name: "Open History", callback: () => void this.activatePanel("history") });
     this.addCommand({
@@ -157,11 +158,11 @@ export default class AgentmdPlugin extends Plugin {
     this.unsubRunning?.();
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
-    document.body.style.removeProperty("--agentmd-accent");
+    activeDocument.body.style.removeProperty("--agentmd-accent");
   }
 
   applyAccent(): void {
-    document.body.style.setProperty("--agentmd-accent", this.settings.accentColor || "#4EA92E");
+    activeDocument.body.style.setProperty("--agentmd-accent", this.settings.accentColor || "#4EA92E");
   }
 
   async saveSettings(): Promise<void> {
@@ -318,8 +319,7 @@ export default class AgentmdPlugin extends Plugin {
         new Notice("No file is currently open.");
         return;
       }
-      const vaultPath = (this.app.vault.adapter as any).basePath as string;
-      args.push(`${vaultPath}/${filePath}`);
+      args.push(`${this.vaultBasePath()}/${filePath}`);
     }
     try {
       const { execution_id } = await this.client.runAgent(name, args.length > 0 ? { args } : undefined);
@@ -436,8 +436,8 @@ export default class AgentmdPlugin extends Plugin {
     this.notifiedRequests.add(pending.request_id);
     const agent = this.store.running.get(executionId)?.agent ?? "Agent";
     const notice = new Notice(`✋ ${agent} needs your input`, 10000);
-    notice.noticeEl.style.cursor = "pointer";
-    notice.noticeEl.addEventListener("click", () => { void this.openExecutionDetail(executionId); });
+    notice.messageEl.addClass("agentmd-notice-clickable");
+    notice.messageEl.addEventListener("click", () => { void this.openExecutionDetail(executionId); });
   }
 
   private notifyCompletion(summary: ExecutionSummary): void {
@@ -472,10 +472,16 @@ export default class AgentmdPlugin extends Plugin {
       leaf = right;
       await leaf.setViewState({ type: VIEW_TYPE_PANEL, active: true });
     }
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
     const view = leaf.view as PanelView;
     if (tab) view.goToTab(tab);
     return view;
+  }
+
+  /** Absolute path of the vault on disk, or "" when not a local filesystem vault. */
+  private vaultBasePath(): string {
+    const adapter = this.app.vault.adapter;
+    return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : "";
   }
 
   private async openExecutionDetail(executionId: number): Promise<void> {
@@ -486,14 +492,12 @@ export default class AgentmdPlugin extends Plugin {
     let abs: string | null = null;
     try { abs = (await this.client.getAgent(agentName)).source_path ?? null; } catch { /* offline */ }
     if (!abs) { new Notice("Source file path unavailable (is the backend running?)."); return; }
-    const vaultPath = (this.app.vault.adapter as any).basePath as string;
-    if (abs.startsWith(vaultPath)) {
+    const vaultPath = this.vaultBasePath();
+    if (vaultPath && abs.startsWith(vaultPath)) {
       const relative = abs.slice(vaultPath.length + 1);
       const file = this.app.vault.getAbstractFileByPath(relative);
-      if (file) { void this.app.workspace.getLeaf("tab").openFile(file as any); return; }
+      if (file instanceof TFile) { void this.app.workspace.getLeaf("tab").openFile(file); return; }
     }
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { shell } = require("electron") as { shell: { showItemInFolder: (path: string) => void } };
     shell.showItemInFolder(abs);
     new Notice(`Source revealed: ${agentName}.md`);
   }

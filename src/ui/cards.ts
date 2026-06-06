@@ -132,7 +132,7 @@ export function createActionNeeded(
   };
 
   if (pending.kind === "confirm") {
-    const reason = block.createEl("input", { cls: "agentmd-input an-reason" }) as HTMLInputElement;
+    const reason = block.createEl("input", { cls: "agentmd-input an-reason" });
     reason.placeholder = "Reason for denying (optional)";
     const acts = block.createDiv({ cls: "an-acts" });
     const approve = acts.createEl("button", { cls: "agentmd-btn primary", text: "✓ Approve" });
@@ -143,7 +143,7 @@ export function createActionNeeded(
     );
   } else if (pending.kind === "input") {
     const acts = block.createDiv({ cls: "an-acts" });
-    const input = acts.createEl("input", { cls: "agentmd-input" }) as HTMLInputElement;
+    const input = acts.createEl("input", { cls: "agentmd-input" });
     input.placeholder = "Type your answer…";
     const send = acts.createEl("button", { cls: "agentmd-btn primary", text: "Send" });
     const go = () => submit(buildRespondBody("input", { text: input.value }));

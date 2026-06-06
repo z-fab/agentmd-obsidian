@@ -51,7 +51,7 @@ export function renderAgentsScreen(container: HTMLElement, ctx: PanelContext): v
     kebab.setAttr("aria-label", "Options");
     kebab.addEventListener("click", (e) => {
       e.stopPropagation();
-      buildAgentMenu(ctx, agent, runningIds, waitingIds).showAtMouseEvent(e as MouseEvent);
+      buildAgentMenu(ctx, agent, runningIds, waitingIds).showAtMouseEvent(e);
     });
 
     if (agent.description) {

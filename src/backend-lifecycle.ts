@@ -79,7 +79,7 @@ export class BackendLifecycle {
     return new Promise((resolve, reject) => {
       execFile(this.agentmdPath, ["start", "-d"], (error) => {
         if (error) {
-          reject(error);
+          reject(error instanceof Error ? error : new Error("Failed to start agentmd"));
         } else {
           resolve();
         }
@@ -88,6 +88,6 @@ export class BackendLifecycle {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise((r) => setTimeout(r, ms));
+    return new Promise((r) => window.setTimeout(r, ms));
   }
 }

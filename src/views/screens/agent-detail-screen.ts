@@ -245,12 +245,12 @@ export class AgentDetailScreen {
     }
 
     // Limits (combined row, " · " separated)
-    const settings = (d.settings ?? {}) as Record<string, unknown>;
+    const settings = (d.settings ?? {});
     const limits: string[] = [];
-    if (settings.max_tool_calls != null) limits.push(`${settings.max_tool_calls} tool calls`);
-    if (settings.max_cost_usd != null) limits.push(`$${settings.max_cost_usd}`);
+    if (settings.max_tool_calls != null) limits.push(`${settings.max_tool_calls as number} tool calls`);
+    if (settings.max_cost_usd != null) limits.push(`$${settings.max_cost_usd as number}`);
     if (settings.max_execution_tokens != null) limits.push(formatTokens(settings.max_execution_tokens as number));
-    if (settings.temperature != null) limits.push(`temp ${settings.temperature}`);
+    if (settings.temperature != null) limits.push(`temp ${settings.temperature as number}`);
     if (limits.length > 0) {
       this.renderConfigRow(config, "Limits", limits.join(" · "));
     }

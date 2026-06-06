@@ -225,7 +225,7 @@ export class AgentmdClient {
         },
         (res) => {
           const chunks: Buffer[] = [];
-          res.on("data", (chunk) => chunks.push(chunk));
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
           res.on("end", () => {
             const raw = Buffer.concat(chunks).toString("utf8");
             const status = res.statusCode ?? 0;

@@ -218,6 +218,10 @@
   cursor: not-allowed;
 }
 
+/* ---------- Small utilities ---------- */
+.agentmd-push-right { margin-left: auto; }
+.agentmd-notice-clickable { cursor: pointer; }
+
 /* ---------- Elevated cards + running animation ---------- */
 
 /* CSS @property for animatable conic-gradient angle */

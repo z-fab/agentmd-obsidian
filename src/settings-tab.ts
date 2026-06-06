@@ -1,4 +1,5 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { shell } from "electron";
 import type AgentmdPlugin from "../main";
 import type { AgentmdSettings } from "./settings";
 
@@ -34,8 +35,6 @@ export class AgentmdSettingTab extends PluginSettingTab {
         btn.setButtonText("Open config file").onClick(async () => {
           const cfgHome = process.env?.XDG_CONFIG_HOME || `${process.env?.HOME ?? ""}/.config`;
           const path = `${cfgHome}/agentmd/config.yaml`;
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const { shell } = require("electron") as { shell: { openPath: (p: string) => Promise<string> } };
           const err = await shell.openPath(path);
           if (err) new Notice(`Could not open config file: ${path}`);
         }),

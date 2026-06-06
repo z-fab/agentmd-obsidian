@@ -101,8 +101,7 @@ export class ExecutionDetailScreen {
     titleRow.createSpan({ cls: "exec-name", text: ` ${run.agent}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${run.id}` });
 
-    const cancelBtn = titleRow.createEl("button", { cls: "agentmd-btn", text: "■ Stop" });
-    cancelBtn.style.marginLeft = "auto";
+    const cancelBtn = titleRow.createEl("button", { cls: "agentmd-btn agentmd-push-right", text: "■ Stop" });
     cancelBtn.addEventListener("click", () => {
       cancelBtn.setText("Stopping…");
       cancelBtn.disabled = true;
@@ -139,7 +138,7 @@ export class ExecutionDetailScreen {
         this.renderLogEvent(log, event);
       }
       log.createSpan({ cls: "log-cursor", text: "▌" });
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         log.scrollTop = log.scrollHeight;
       });
     }
@@ -175,8 +174,7 @@ export class ExecutionDetailScreen {
     titleRow.createSpan({ cls: "exec-name", text: ` ${exec.agent_id}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${exec.id}` });
 
-    const rerunBtn = titleRow.createEl("button", { cls: "agentmd-btn", text: "↻ Re-run" });
-    rerunBtn.style.marginLeft = "auto";
+    const rerunBtn = titleRow.createEl("button", { cls: "agentmd-btn agentmd-push-right", text: "↻ Re-run" });
     rerunBtn.addEventListener("click", () => this.ctx.actions.onRerun(exec.agent_id));
 
     // Row 2: trigger · status · duration
@@ -223,7 +221,7 @@ export class ExecutionDetailScreen {
       const answerSection = container.createDiv({ cls: "exec-final-answer" });
       answerSection.createDiv({ cls: "final-label", text: `${statusIcon} Final Answer` });
       const answerContent = answerSection.createDiv({ cls: "final-content" });
-      MarkdownRenderer.render(
+      void MarkdownRenderer.render(
         this.ctx.app,
         finalAnswer,
         answerContent,
@@ -274,7 +272,7 @@ export class ExecutionDetailScreen {
         data.tools = [{ name: toolName, args: argsStr }];
         data.message = m.message;
       }
-      return { type: m.event_type, id: String(m.id), data } as ParsedSSEEvent;
+      return { type: m.event_type, id: String(m.id), data };
     });
   }
 
