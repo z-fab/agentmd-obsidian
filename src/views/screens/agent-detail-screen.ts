@@ -1,7 +1,6 @@
-import { setIcon } from "obsidian";
 import type { PanelContext } from "../panel-view";
 import type { AgentDetail, ExecutionSummary } from "../../types";
-import { createEmojiBox, createChip, createStopPill } from "../../ui/cards";
+import { createEmojiBox, createRunningPill, createWaitingPill } from "../../ui/cards";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "../../ui/format";
 
 export class AgentDetailScreen {
@@ -85,10 +84,16 @@ export class AgentDetailScreen {
     const { runningId, waitingIds } = this.findActive();
     const header = container.createDiv({ cls: "agent-detail-header" });
 
-    // Row 1: emoji box + name
+    // Row 1: emoji box + name + status pills
     const titleRow = header.createDiv({ cls: "exec-title" });
     createEmojiBox(titleRow, d.icon || "🤖", runningId !== null ? "running" : undefined);
     titleRow.createSpan({ cls: "exec-name agent-detail-name", text: d.name });
+    if (runningId !== null) {
+      createRunningPill(titleRow, "Running", () => this.ctx.nav.push({ kind: "execution", id: runningId }));
+    }
+    if (waitingIds.length > 0) {
+      createWaitingPill(titleRow, String(waitingIds.length), () => this.ctx.nav.push({ kind: "execution", id: waitingIds[0] }));
+    }
 
     // Row 2: trigger · model · next run
     const meta = header.createDiv({ cls: "exec-meta-line" });
@@ -114,18 +119,9 @@ export class AgentDetailScreen {
     // Row 4: action buttons
     const actions = header.createDiv({ cls: "agent-detail-actions" });
 
-    if (waitingIds.length > 0) {
-      const chip = actions.createSpan({ cls: "agentmd-chip waiting" });
-      chip.style.cursor = "pointer";
-      const ic = chip.createSpan();
-      setIcon(ic, "pause");
-      chip.createSpan({ text: ` ${waitingIds.length}` });
-      chip.setAttr("aria-label", `${waitingIds.length} pending response(s)`);
-      chip.addEventListener("click", () => this.ctx.nav.push({ kind: "execution", id: waitingIds[0] }));
-    }
     if (runningId !== null) {
-      createChip(actions, `● Running #${runningId}`, "running");
-      createStopPill(actions, () => this.ctx.actions.onCancelExecution(runningId));
+      const stopBtn = actions.createEl("button", { cls: "agentmd-btn danger", text: "■ Stop" });
+      stopBtn.addEventListener("click", () => this.ctx.actions.onCancelExecution(runningId));
     } else {
       const runBtn = actions.createEl("button", { cls: "agentmd-btn", text: "▶ Run" });
       runBtn.addEventListener("click", () => this.ctx.actions.onRunAgent(d.name, false));

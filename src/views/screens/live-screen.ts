@@ -1,6 +1,5 @@
-import { setIcon } from "obsidian";
 import type { PanelContext } from "../panel-view";
-import { createCard, createEmojiBox, createStopPill, createEmptyState } from "../../ui/cards";
+import { createCard, createEmojiBox, createStopPill, createRunningPill, createWaitingPill, createEmptyState } from "../../ui/cards";
 import { formatDuration, formatTokens, formatCost } from "../../ui/format";
 
 export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): void {
@@ -20,12 +19,19 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
     const card = createCard(list, { running: !waiting, waiting });
     card.addEventListener("click", () => ctx.nav.push({ kind: "execution", id: exec.id }));
 
-    // Name row
+    // Name row: box + name + #id + status pill (with timer) + stop (hover)
     const nameRow = card.createDiv({ cls: "agentmd-card-row" });
     const agentIcon = ctx.store.agents.find((a) => a.name === exec.agent)?.icon || "🤖";
     createEmojiBox(nameRow, agentIcon, waiting ? "waiting" : "running");
     nameRow.createSpan({ cls: "agentmd-card-name", text: exec.agent });
     nameRow.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
+
+    // Frozen elapsed while waiting; live elapsed while running.
+    const elapsedMs = (waiting && exec.pausedAt != null ? exec.pausedAt : Date.now()) - exec.startedAt;
+    const elapsed = formatDuration(Math.round(elapsedMs / 1000));
+    if (waiting) createWaitingPill(nameRow, elapsed);
+    else createRunningPill(nameRow, elapsed);
+
     if (!waiting) createStopPill(nameRow, () => ctx.actions.onCancelExecution(exec.id));
 
     // Activity line: the pending question while waiting, else the live activity
@@ -34,25 +40,11 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
       : exec.lastActivity;
     if (activity) card.createDiv({ cls: "agentmd-activity", text: activity });
 
-    // Meta line
-    const meta = card.createDiv({ cls: "agentmd-meta-line" });
-    const status = meta.createSpan({
-      cls: waiting
-        ? "agentmd-meta-status agentmd-status-waiting"
-        : "agentmd-meta-status agentmd-status-running",
-    });
-    if (waiting) {
-      const ic = status.createSpan();
-      setIcon(ic, "pause");
-      status.createSpan({ text: " Waiting" });
-    } else {
-      status.setText("● Running");
+    // Meta line: token/cost stats only (status now lives in the pill)
+    if (!waiting && (exec.tokensTotal > 0 || exec.costUsd > 0)) {
+      const meta = card.createDiv({ cls: "agentmd-meta-line" });
+      if (exec.tokensTotal > 0) meta.createSpan({ text: formatTokens(exec.tokensTotal) });
+      if (exec.costUsd > 0) meta.createSpan({ text: formatCost(exec.costUsd) });
     }
-
-    const elapsedMs = (waiting && exec.pausedAt != null ? exec.pausedAt : Date.now()) - exec.startedAt;
-    const elapsed = Math.round(elapsedMs / 1000);
-    meta.createSpan({ text: formatDuration(elapsed) });
-    if (!waiting && exec.tokensTotal > 0) meta.createSpan({ text: formatTokens(exec.tokensTotal) });
-    if (!waiting && exec.costUsd > 0) meta.createSpan({ text: formatCost(exec.costUsd) });
   }
 }

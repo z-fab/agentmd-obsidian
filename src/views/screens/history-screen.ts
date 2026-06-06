@@ -1,6 +1,6 @@
 import type { PanelContext } from "../panel-view";
 import type { ExecutionSummary } from "../../types";
-import { createCard, createEmojiBox, createEmptyState } from "../../ui/cards";
+import { createCard, createEmojiBox, createResultPill, createWaitingPill, createEmptyState } from "../../ui/cards";
 import { formatDuration, formatTokens, formatCost, formatRelativeTime } from "../../ui/format";
 
 type StatusFilter = "all" | "success" | "failed" | "aborted";
@@ -171,26 +171,19 @@ export class HistoryScreen {
     const card = createCard(list);
     card.addEventListener("click", () => this.ctx.nav.push({ kind: "execution", id: exec.id }));
 
-    // Name row: emoji box + agent name + #id + time
+    // Name row: emoji box + agent name + #id + status pill + time
     const row = card.createDiv({ cls: "agentmd-card-row" });
     const agentIcon = this.ctx.store.agents.find((a) => a.name === exec.agent_id)?.icon;
     createEmojiBox(row, agentIcon || "🤖", state);
     row.createSpan({ cls: "agentmd-card-name", text: exec.agent_id });
     row.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
+    if (isWaiting) createWaitingPill(row, "Waiting");
+    else createResultPill(row, isSuccess ? "success" : isFailed ? "failed" : "aborted");
     const time = row.createSpan({ cls: "exec-row-time", text: formatRelativeTime(exec.started_at) });
     time.style.marginLeft = "auto";
 
-    // Meta line: status text + duration · tokens · cost (+ error)
+    // Meta line: duration · tokens · cost (+ error)
     const meta = card.createDiv({ cls: "agentmd-meta-line" });
-    if (isWaiting) {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-waiting", text: "⏸ Waiting" });
-    } else if (isSuccess) {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-success", text: "✓ Success" });
-    } else if (isFailed) {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-failed", text: "✗ Failed" });
-    } else {
-      meta.createSpan({ cls: "agentmd-meta-status agentmd-status-aborted", text: "⚠ Aborted" });
-    }
     meta.createSpan({ text: formatDuration(exec.duration_ms != null ? exec.duration_ms / 1000 : undefined) });
     meta.createSpan({ text: formatTokens(exec.total_tokens) });
     meta.createSpan({ text: formatCost(exec.cost_usd) });

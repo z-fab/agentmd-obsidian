@@ -43,6 +43,60 @@ export function createChip(parent: HTMLElement, text: string, variant?: string):
   return chip;
 }
 
+/** Trigger chip with a Lucide icon: Manual (cursor) / Scheduled (clock) / Watch (eye). */
+export function createTriggerChip(parent: HTMLElement, triggerType?: string | null): HTMLElement {
+  const tt = triggerType ?? "manual";
+  let icon = "";
+  let label = tt;
+  let variant = "";
+  if (tt === "schedule") { icon = "clock"; label = "Scheduled"; variant = "scheduled"; }
+  else if (tt === "watch") { icon = "eye"; label = "Watch"; variant = "watch"; }
+  else if (tt === "manual" || tt === "none") { icon = "mouse-pointer-click"; label = "Manual"; variant = "manual"; }
+  const chip = parent.createSpan({ cls: "agentmd-chip" + (variant ? " " + variant : "") });
+  if (icon) setIcon(chip.createSpan({ cls: "agentmd-chip-icon" }), icon);
+  chip.createSpan({ text: label });
+  return chip;
+}
+
+/**
+ * Standardized status pills, used in the same slot (next to the name/ID) across
+ * Agents / Live / History. `text` is the count ("2") or timer ("0:18").
+ */
+export function createRunningPill(parent: HTMLElement, text: string, onClick?: (e: MouseEvent) => void): HTMLElement {
+  const pill = parent.createSpan({ cls: "agentmd-pill run" });
+  pill.createSpan({ cls: "agentmd-spin" });
+  pill.createSpan({ text });
+  if (onClick) wirePill(pill, onClick);
+  return pill;
+}
+
+export function createWaitingPill(parent: HTMLElement, text: string, onClick?: (e: MouseEvent) => void): HTMLElement {
+  const pill = parent.createSpan({ cls: "agentmd-pill wait" });
+  setIcon(pill.createSpan({ cls: "agentmd-pill-icon" }), "pause");
+  pill.createSpan({ text });
+  if (onClick) wirePill(pill, onClick);
+  return pill;
+}
+
+/** Terminal-status pill (History): success/failed/aborted with a Lucide icon. */
+export function createResultPill(parent: HTMLElement, status: "success" | "failed" | "aborted"): HTMLElement {
+  const map = {
+    success: { v: "ok", icon: "check", label: "Success" },
+    failed: { v: "err", icon: "x", label: "Failed" },
+    aborted: { v: "ab", icon: "ban", label: "Aborted" },
+  } as const;
+  const m = map[status];
+  const pill = parent.createSpan({ cls: `agentmd-pill ${m.v}` });
+  setIcon(pill.createSpan({ cls: "agentmd-pill-icon" }), m.icon);
+  pill.createSpan({ text: m.label });
+  return pill;
+}
+
+function wirePill(pill: HTMLElement, onClick: (e: MouseEvent) => void): void {
+  pill.addClass("clickable");
+  pill.addEventListener("click", (e) => { e.stopPropagation(); onClick(e); });
+}
+
 /**
  * Render the "Action needed" block for a waiting execution and wire its controls.
  * `onRespond(body)` receives the `response` object to POST.
