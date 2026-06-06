@@ -8,6 +8,7 @@
 .agentmd-status-success  { color: #10b981; }
 .agentmd-status-failed   { color: #ef4444; }
 .agentmd-status-aborted  { color: #f59e0b; }
+.agentmd-status-waiting   { color: #f59e0b; }
 .agentmd-trigger-manual    { color: #888888; }
 .agentmd-trigger-scheduler { color: #fbbf24; }
 .agentmd-trigger-watch     { color: #06b6d4; }
@@ -43,6 +44,8 @@
 .agentmd-status-bar.agentmd-status-offline {
   color: var(--text-faint);
 }
+.agentmd-statusbar-waiting { color: #f59e0b; font-weight: var(--font-semibold); margin-left: 8px; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+.agentmd-statusbar-waiting svg { width: 12px; height: 12px; }
 
 /* ---------- Panel header ---------- */
 .agentmd-panel-header {
@@ -73,30 +76,31 @@
 
 /* ---------- Tabs ---------- */
 .agentmd-tabrow { display: flex; border-bottom: 1px solid var(--background-modifier-border); }
-.agentmd-tab {
+/* Scoped under .agentmd-tabrow to override Obsidian's default <button> chrome
+   (bg + shadow) without !important — the descendant selector adds specificity. */
+.agentmd-tabrow .agentmd-tab {
   flex: 1;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   padding: 11px 4px;
-  /* Kill Obsidian's default <button> chrome (bg + shadow) so tabs read as tabs */
-  background-color: transparent !important;
-  box-shadow: none !important;
+  background-color: transparent;
+  box-shadow: none;
   border: none;
   border-bottom: 2px solid transparent;   /* only the bottom edge */
   border-radius: 0;
   margin-bottom: -1px;            /* overlap the row's bottom border */
   color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer;
 }
-.agentmd-tab:hover {
+.agentmd-tabrow .agentmd-tab:hover {
   color: var(--text-normal);
-  background-color: transparent !important;
-  box-shadow: none !important;
+  background-color: transparent;
+  box-shadow: none;
 }
-.agentmd-tab.active {
+.agentmd-tabrow .agentmd-tab.active {
   color: var(--text-normal);
   border-bottom-color: var(--agentmd-accent, #8b5cf6);
   font-weight: var(--font-semibold);
-  background-color: transparent !important;
-  box-shadow: none !important;
+  background-color: transparent;
+  box-shadow: none;
 }
 .agentmd-tab-count {
   font-size: 10px;
@@ -106,6 +110,7 @@
   background: var(--background-modifier-border);
   color: var(--text-muted);
 }
+.agentmd-tab-count.waiting { background: rgba(245,158,11,0.22); color: #f59e0b; font-weight: var(--font-semibold); }
 
 /* ---------- Back bar ---------- */
 .agentmd-back-bar {
@@ -134,7 +139,56 @@
 .agentmd-chip.scheduled { background: rgba(251,191,36,0.14); color: #fbbf24; }
 .agentmd-chip.watch     { background: rgba(6,182,212,0.14);  color: #06b6d4; }
 .agentmd-chip.manual    { background: var(--background-secondary); color: var(--text-faint); }
+.agentmd-chip.waiting { background: rgba(245,158,11,0.16); color: #f59e0b; font-weight: var(--font-semibold); }
+.agentmd-chip.waiting svg { width: 11px; height: 11px; vertical-align: -1px; }
 .agentmd-chip.model     { background: transparent; color: var(--text-faint); border: 1px solid var(--background-modifier-border); }
+.agentmd-chip .agentmd-chip-icon { display: inline-flex; }
+.agentmd-chip svg { width: 12px; height: 12px; }
+
+/* ---------- Status pills (running / waiting / result) ---------- */
+.agentmd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.agentmd-pill.clickable { cursor: pointer; }
+.agentmd-pill.run  { background: rgba(59,130,246,0.16); color: #60a5fa; }
+.agentmd-pill.wait { background: rgba(245,158,11,0.16); color: #f59e0b; }
+.agentmd-pill.ok   { background: rgba(16,185,129,0.16); color: #34d399; }
+.agentmd-pill.err  { background: rgba(239,68,68,0.16);  color: #f87171; }
+.agentmd-pill.ab   { background: rgba(245,158,11,0.16); color: #fbbf24; }
+.agentmd-pill .agentmd-pill-icon { display: inline-flex; }
+.agentmd-pill svg { width: 11px; height: 11px; }
+.agentmd-spin {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  border: 1.6px solid rgba(96,165,250,0.30);
+  border-top-color: #60a5fa;
+  animation: agentmd-spin .8s linear infinite;
+  flex: 0 0 auto;
+}
+@keyframes agentmd-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Kebab (card options menu trigger) ---------- */
+.agentmd-kebab {
+  margin-left: auto;
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.agentmd-kebab:hover { background: var(--background-secondary); color: var(--text-normal); }
+.agentmd-kebab svg { width: 16px; height: 16px; }
 
 /* ---------- Action buttons ---------- */
 .agentmd-btn {
@@ -182,24 +236,36 @@
   border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
 }
 
-.agentmd-card.is-running::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
-  padding: 1px;
-  background: conic-gradient(from var(--agentmd-bd), transparent 0 60%, #3b82f6 82%, #93c5fd 90%, transparent 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+/* Thin rotating blue border via a conic gradient painted on the border-box.
+   No CSS masks (only partially supported by older Obsidian); the padding-box
+   layer keeps the card fill, the border-box layer animates the 1px edge. */
+.agentmd-card.is-running {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--background-modifier-hover), var(--background-modifier-hover)) padding-box,
+    conic-gradient(from var(--agentmd-bd), rgba(59,130,246,0.18) 0 60%, #3b82f6 84%, #93c5fd 90%, rgba(59,130,246,0.18) 100%) border-box;
   animation: agentmd-rot 3.4s linear infinite;
-  pointer-events: none;
+}
+.agentmd-card.is-running:hover {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--background-secondary), var(--background-secondary)) padding-box,
+    conic-gradient(from var(--agentmd-bd), rgba(59,130,246,0.18) 0 60%, #3b82f6 84%, #93c5fd 90%, rgba(59,130,246,0.18) 100%) border-box;
 }
 @keyframes agentmd-rot { to { --agentmd-bd: 360deg; } }
 
 /* Fallback for engines without @property: static subtle blue border */
 @supports not (background: conic-gradient(from 0deg, red, red)) {
-  .agentmd-card.is-running { border-color: rgba(59,130,246,0.6); }
+  .agentmd-card.is-running { border-color: rgba(59,130,246,0.6); background: var(--background-modifier-hover); }
+}
+
+.agentmd-card.is-waiting {
+  border-color: #f59e0b;
+  animation: agentmd-wait-pulse 2.6s ease-in-out infinite;
+}
+@keyframes agentmd-wait-pulse {
+  0%, 100% { border-color: rgba(245,158,11,0.85); }
+  50%      { border-color: rgba(245,158,11,0.25); }
 }
 
 /* ---------- Emoji box ---------- */
@@ -220,6 +286,7 @@
   0%, 100% { background: rgba(59,130,246,0.16); }
   50% { background: rgba(59,130,246,0.40); }
 }
+.agentmd-emoji-box.is-waiting { background: rgba(245,158,11,0.22); }
 .agentmd-emoji-box.is-success { background: rgba(16,185,129,0.22); }
 .agentmd-emoji-box.is-error   { background: rgba(239,68,68,0.22); }
 .agentmd-emoji-box.is-aborted { background: rgba(245,158,11,0.22); }
@@ -248,11 +315,13 @@
 }
 
 /* ---------- Card list container ---------- */
+/* Responsive grid: 1 column in a narrow sidebar, tiles side-by-side when wide. */
 .agentmd-card-list {
   padding: 8px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: 8px;
+  align-items: start;
 }
 
 /* ---------- Card row / name / desc / footer ---------- */
@@ -274,6 +343,7 @@
   font-family: var(--font-monospace);
 }
 .agentmd-meta-line .agentmd-meta-status { font-weight: var(--font-semibold); }
+.agentmd-meta-status svg { width: 12px; height: 12px; vertical-align: -2px; }
 
 .agentmd-activity {
   margin-top: 7px;
@@ -351,6 +421,7 @@
   color: var(--text-normal);
   margin-bottom: 6px;
 }
+.exec-title .agentmd-status-waiting svg { width: 16px; height: 16px; vertical-align: -3px; }
 .exec-name {
   /* inherit weight from parent */
 }
@@ -427,6 +498,32 @@
 .agentmd-exec-detail .exec-final-answer .final-content p:last-child {
   margin-bottom: 0;
 }
+
+/* ---------- Execution Detail: Action needed (HILT) ---------- */
+.exec-header.waiting {
+  background: rgba(245,158,11,0.06);
+  border-bottom-color: rgba(245,158,11,0.16);
+}
+.exec-action-needed {
+  padding: 16px;
+  background: rgba(245,158,11,0.06);
+  border-bottom: 1px solid rgba(245,158,11,0.18);
+}
+.exec-action-needed .an-label {
+  font-size: 11px; color: #f59e0b; text-transform: uppercase; letter-spacing: .5px;
+  font-weight: var(--font-semibold); display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+}
+.exec-action-needed .an-label svg { width: 13px; height: 13px; }
+.exec-action-needed .an-q { color: var(--text-normal); font-size: var(--font-ui-small); line-height: 1.6; font-weight: var(--font-semibold); margin-bottom: 9px; }
+.exec-action-needed .an-tool { font-family: var(--font-monospace); font-size: 11px; color: var(--text-faint); background: var(--background-primary-alt); padding: 7px 9px; border-radius: 5px; margin-bottom: 12px; word-break: break-word; }
+.exec-action-needed .an-acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.exec-action-needed .an-sending { color: var(--text-faint); font-size: var(--font-ui-smaller); margin-left: 4px; }
+.agentmd-btn.danger { background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.45); color: #f08a8a; }
+.agentmd-btn.ghost { background: transparent; color: var(--text-faint); }
+.agentmd-input { flex: 1; min-width: 150px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 5px 9px; color: var(--text-normal); font-size: var(--font-ui-smaller); }
+.exec-action-needed .agentmd-input.an-reason { width: 100%; flex: none; margin-bottom: 10px; }
+.exec-action-needed .agentmd-chip { cursor: pointer; }
+.exec-action-needed .agentmd-chip.sel { background: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 16%, transparent); border-color: color-mix(in srgb, var(--agentmd-accent, #8b5cf6) 45%, transparent); color: var(--text-normal); }
 
 /* ---------- Execution Detail: Log ---------- */
 .agentmd-exec-detail .exec-log-wrapper {
@@ -645,8 +742,8 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.agent-detail-name {
-  font-size: var(--font-ui-large) !important;
+.exec-title .agent-detail-name {
+  font-size: var(--font-ui-large);
 }
 .agent-detail-desc {
   color: var(--text-muted);

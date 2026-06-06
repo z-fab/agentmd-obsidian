@@ -88,22 +88,55 @@ export interface SSEEventData {
   /** Replayed events include a timestamp. */
   timestamp?: string;
   tools?: SSEToolCall[];
-  tool_name?: string;
+  tool_name?: string | null;
   /** Only on complete events */
   status?: string;
   duration_ms?: number;
   total_tokens?: number;
   cost_usd?: number;
   error?: string;
+  // ---- HILT interrupt event fields ----
+  request_id?: string;
+  kind?: string;
+  tool_args?: Record<string, unknown> | null;
+  options?: string[] | null;
+  multi?: boolean;
 }
 
 export interface ParsedSSEEvent {
-  /** SSE event type. Canonical: message, ai, tool_call, tool_result, meta, final_answer, complete, system, human. (`tool_response` is legacy DB replay only.) */
+  /** SSE event type. Canonical: message, ai, tool_call, tool_result, meta, final_answer, complete, system, human, interrupt, waiting. (`tool_response` is legacy DB replay only.) */
   type: string;
   /** Sequence ID from backend — used for dedup on reconnect */
   id: string;
   /** Parsed JSON payload */
   data: SSEEventData;
+}
+
+// ---------- HILT (human-in-the-loop) ----------
+
+export type HiltKind = "confirm" | "input" | "choice";
+
+export interface PendingRequest {
+  request_id: string;
+  kind: HiltKind;
+  message: string;
+  tool_name?: string | null;
+  tool_args?: Record<string, unknown> | null;
+  options?: string[] | null;
+  multi?: boolean;
+}
+
+/** GET /executions/{id}/pending */
+export interface PendingResponse {
+  execution_id: number;
+  request_id: string;
+  kind: HiltKind;
+  message: string;
+  tool_name?: string | null;
+  tool_args?: Record<string, unknown> | null;
+  options?: string[] | null;
+  multi: boolean;
+  created_at: string;
 }
 
 // ---------- Global SSE events (GET /events/stream) ----------
@@ -123,6 +156,11 @@ export interface GlobalSSEExecutionCompleted {
   agent_name: string;
   status: string;
   duration_ms: number;
+}
+
+export interface GlobalSSEExecutionWaiting {
+  execution_id: number;
+  agent_name: string;
 }
 
 export interface GlobalSSEAgentsChanged {

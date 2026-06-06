@@ -13,6 +13,7 @@ import type { AgentDetail, ExecutionSummary, LogEntry } from "../types";
 export interface PanelActions {
   onRunAgent: (name: string, withFile: boolean) => void;
   onCancelExecution: (id: number) => void;
+  onRespond: (id: number, requestId: string, response: Record<string, unknown>) => void;
   onRefreshAgents: () => void;
   onOpenSourceFile: (name: string) => void;
   onRerun: (name: string) => void;
@@ -166,14 +167,17 @@ export class PanelView extends ItemView {
 
   private renderTabs(root: HTMLElement, active: TabKey): void {
     const row = root.createDiv({ cls: "agentmd-tabrow" });
-    const mk = (tab: TabKey, label: string, count?: number) => {
+    const mk = (tab: TabKey, label: string, count?: number, warn?: boolean) => {
       const b = row.createEl("button", { cls: "agentmd-tab" + (tab === active ? " active" : "") });
       b.createSpan({ text: label });
-      if (count && count > 0) b.createSpan({ cls: "agentmd-tab-count", text: String(count) });
+      if (count && count > 0) {
+        const badge = b.createSpan({ cls: "agentmd-tab-count", text: String(count) });
+        if (warn) badge.addClass("waiting");
+      }
       b.addEventListener("click", () => this.goToTab(tab));
     };
     mk("agents", "Agents", this.store.agents.length);
-    mk("live", "Live", this.store.running.size);
+    mk("live", "Live", this.store.running.size, this.store.waitingCount > 0);
     mk("history", "History");
   }
 
@@ -205,10 +209,11 @@ export class PanelView extends ItemView {
   }
 
   private updateTick(screen: Screen): void {
-    const needsTick =
-      (screen.kind === "tab" && screen.tab === "live") ||
-      (screen.kind === "execution" && this.store.running.has(screen.id));
-    if (needsTick) this.startTick(); else this.stopTick();
+    const anyRunning = [...this.store.running.values()].some((r) => r.state === "running");
+    const liveNeedsTick = screen.kind === "tab" && screen.tab === "live" && anyRunning;
+    const execNeedsTick =
+      screen.kind === "execution" && this.store.running.get(screen.id)?.state === "running";
+    if (liveNeedsTick || execNeedsTick) this.startTick(); else this.stopTick();
   }
 
   private startTick(): void {

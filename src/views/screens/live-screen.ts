@@ -1,5 +1,5 @@
 import type { PanelContext } from "../panel-view";
-import { createCard, createEmojiBox, createStopPill, createEmptyState } from "../../ui/cards";
+import { createCard, createEmojiBox, createStopPill, createRunningPill, createWaitingPill, createEmptyState } from "../../ui/cards";
 import { formatDuration, formatTokens, formatCost } from "../../ui/format";
 
 export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): void {
@@ -15,34 +15,36 @@ export function renderLiveScreen(container: HTMLElement, ctx: PanelContext): voi
   const list = container.createDiv({ cls: "agentmd-card-list" });
 
   for (const [, exec] of ctx.store.running) {
-    const card = createCard(list, { running: true });
+    const waiting = exec.state === "waiting";
+    const card = createCard(list, { running: !waiting, waiting });
     card.addEventListener("click", () => ctx.nav.push({ kind: "execution", id: exec.id }));
 
-    // Name row
+    // Name row: box + name + #id + status pill (with timer) + stop (hover)
     const nameRow = card.createDiv({ cls: "agentmd-card-row" });
     const agentIcon = ctx.store.agents.find((a) => a.name === exec.agent)?.icon || "🤖";
-    createEmojiBox(nameRow, agentIcon, "running");
+    createEmojiBox(nameRow, agentIcon, waiting ? "waiting" : "running");
     nameRow.createSpan({ cls: "agentmd-card-name", text: exec.agent });
     nameRow.createSpan({ cls: "agentmd-card-id", text: `#${exec.id}` });
-    createStopPill(nameRow, () => ctx.actions.onCancelExecution(exec.id));
 
-    // Activity line
-    if (exec.lastActivity) {
-      card.createDiv({ cls: "agentmd-activity", text: exec.lastActivity });
-    }
+    // Frozen elapsed while waiting; live elapsed while running.
+    const elapsedMs = (waiting && exec.pausedAt != null ? exec.pausedAt : Date.now()) - exec.startedAt;
+    const elapsed = formatDuration(Math.round(elapsedMs / 1000));
+    if (waiting) createWaitingPill(nameRow, elapsed);
+    else createRunningPill(nameRow, elapsed);
 
-    // Meta line
-    const meta = card.createDiv({ cls: "agentmd-meta-line" });
-    meta.createSpan({ cls: "agentmd-meta-status agentmd-status-running", text: "● Running" });
+    if (!waiting) createStopPill(nameRow, () => ctx.actions.onCancelExecution(exec.id));
 
-    const elapsed = Math.round((Date.now() - exec.startedAt) / 1000);
-    meta.createSpan({ text: formatDuration(elapsed) });
+    // Activity line: the pending question while waiting, else the live activity
+    const activity = waiting
+      ? `${exec.pending?.message ?? "Waiting for your response"} — tap to respond`
+      : exec.lastActivity;
+    if (activity) card.createDiv({ cls: "agentmd-activity", text: activity });
 
-    if (exec.tokensTotal > 0) {
-      meta.createSpan({ text: formatTokens(exec.tokensTotal) });
-    }
-    if (exec.costUsd > 0) {
-      meta.createSpan({ text: formatCost(exec.costUsd) });
+    // Meta line: token/cost stats only (status now lives in the pill)
+    if (!waiting && (exec.tokensTotal > 0 || exec.costUsd > 0)) {
+      const meta = card.createDiv({ cls: "agentmd-meta-line" });
+      if (exec.tokensTotal > 0) meta.createSpan({ text: formatTokens(exec.tokensTotal) });
+      if (exec.costUsd > 0) meta.createSpan({ text: formatCost(exec.costUsd) });
     }
   }
 }

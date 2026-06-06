@@ -476,3 +476,42 @@ describe("AgentmdClient.getScheduler()", () => {
     expect(sched.jobs[0].next_run).toBe("2026-04-12T13:00:00Z");
   });
 });
+
+describe("AgentmdClient — HILT", () => {
+  let socketPath: string;
+  let server: http.Server;
+  beforeEach(() => { socketPath = tempSocketPath(); });
+  afterEach(async () => { if (server) await stopServer(server, socketPath); });
+
+  it("getPending GETs /executions/{id}/pending", async () => {
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.method).toBe("GET");
+      expect(req.url).toBe("/executions/7/pending");
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ execution_id: 7, request_id: "r1", kind: "confirm", message: "ok?", multi: false, created_at: "t" }));
+    });
+    const client = new AgentmdClient({ socketPath });
+    const p = await client.getPending(7);
+    expect(p.request_id).toBe("r1");
+    expect(p.kind).toBe("confirm");
+  });
+
+  it("respond POSTs the request_id + response body", async () => {
+    let received: any;
+    server = await startFakeServer(socketPath, (req, res) => {
+      expect(req.method).toBe("POST");
+      expect(req.url).toBe("/executions/7/respond");
+      const chunks: Buffer[] = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => {
+        received = JSON.parse(Buffer.concat(chunks).toString());
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ status: "resuming", execution_id: 7 }));
+      });
+    });
+    const client = new AgentmdClient({ socketPath });
+    const out = await client.respond(7, "r1", { approved: true });
+    expect(out.status).toBe("resuming");
+    expect(received).toEqual({ request_id: "r1", response: { approved: true } });
+  });
+});

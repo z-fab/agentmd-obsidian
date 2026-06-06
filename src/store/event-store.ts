@@ -1,4 +1,4 @@
-import type { AgentSummary, ExecutionSummary, ParsedSSEEvent } from "../types";
+import type { AgentSummary, ExecutionSummary, ParsedSSEEvent, PendingRequest } from "../types";
 
 export interface RunningExecution {
   id: number;
@@ -10,6 +10,10 @@ export interface RunningExecution {
   tokensTotal: number;
   costUsd: number;
   finalAnswer?: string;
+  state: "running" | "waiting";
+  pending?: PendingRequest;
+  /** When the execution entered `waiting` (ms). Used to freeze the elapsed timer. */
+  pausedAt?: number;
 }
 
 type Listener = () => void;
@@ -82,6 +86,7 @@ export class EventStore {
       lastActivity: "",
       tokensTotal: 0,
       costUsd: 0,
+      state: "running",
     });
     this.notify(this.runningListeners);
   }
@@ -113,6 +118,48 @@ export class EventStore {
       if (event.data.cost_usd != null) run.costUsd = event.data.cost_usd;
     }
 
+    this.notify(this.runningListeners);
+  }
+
+  get waitingCount(): number {
+    let n = 0;
+    for (const r of this._running.values()) if (r.state === "waiting") n++;
+    return n;
+  }
+
+  /** Mark an execution as waiting on a HILT request. Creates the entry if unknown. */
+  markWaiting(executionId: number, pending: PendingRequest, agent?: string): void {
+    let run = this._running.get(executionId);
+    if (!run) {
+      run = {
+        id: executionId,
+        agent: agent ?? "agent",
+        triggerSource: "unknown",
+        startedAt: Date.now(),
+        events: [],
+        lastActivity: "",
+        tokensTotal: 0,
+        costUsd: 0,
+        state: "running",
+      };
+      this._running.set(executionId, run);
+    }
+    run.state = "waiting";
+    run.pending = pending;
+    run.pausedAt = Date.now();
+    this.notify(this.runningListeners);
+  }
+
+  /** Move a waiting execution back to running (after a response was sent). */
+  markResuming(executionId: number): void {
+    const run = this._running.get(executionId);
+    if (!run) return;
+    if (run.pausedAt != null) {
+      run.startedAt += Date.now() - run.pausedAt;
+      run.pausedAt = undefined;
+    }
+    run.state = "running";
+    run.pending = undefined;
     this.notify(this.runningListeners);
   }
 
@@ -152,9 +199,9 @@ export class EventStore {
     const newIds: number[] = [];
     let changed = false;
 
-    // Remove stale entries
-    for (const id of this._running.keys()) {
-      if (!apiIds.has(id)) {
+    // Remove stale entries (preserve waiting executions — they are not in the status=running list)
+    for (const [id, run] of this._running) {
+      if (!apiIds.has(id) && run.state !== "waiting") {
         this._running.delete(id);
         changed = true;
       }
@@ -172,6 +219,7 @@ export class EventStore {
           lastActivity: "",
           tokensTotal: 0,
           costUsd: 0,
+          state: "running",
         });
         newIds.push(exec.id);
         changed = true;

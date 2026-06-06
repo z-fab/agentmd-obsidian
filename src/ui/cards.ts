@@ -1,4 +1,6 @@
 import { setIcon } from "obsidian";
+import type { PendingRequest } from "../types";
+import { buildRespondBody } from "../views/hilt";
 
 /** Render a friendly empty state: a Lucide icon, a title, and an optional description. */
 export function createEmptyState(
@@ -14,20 +16,21 @@ export function createEmptyState(
 }
 
 /** Create the elevated card container. Add `running` to apply the spinning border. */
-export function createCard(parent: HTMLElement, opts?: { running?: boolean }): HTMLElement {
+export function createCard(parent: HTMLElement, opts?: { running?: boolean; waiting?: boolean }): HTMLElement {
   const card = parent.createDiv({ cls: "agentmd-card" });
   if (opts?.running) card.addClass("is-running");
+  if (opts?.waiting) card.addClass("is-waiting");
   return card;
 }
 
 /**
  * Create the emoji-box. `state` colors the box:
- * - "running" → pulsing blue, "success"/"error"/"aborted" → status tint, undefined → neutral.
+ * - "running" → pulsing blue, "waiting" → pulsing orange, "success"/"error"/"aborted" → status tint, undefined → neutral.
  */
 export function createEmojiBox(
   parent: HTMLElement,
   emoji: string,
-  state?: "running" | "success" | "error" | "aborted",
+  state?: "running" | "waiting" | "success" | "error" | "aborted",
 ): HTMLElement {
   const box = parent.createSpan({ cls: "agentmd-emoji-box", text: emoji });
   if (state) box.addClass(`is-${state}`);
@@ -38,6 +41,140 @@ export function createChip(parent: HTMLElement, text: string, variant?: string):
   const chip = parent.createSpan({ cls: "agentmd-chip", text });
   if (variant) chip.addClass(variant);
   return chip;
+}
+
+/** Trigger chip with a Lucide icon: Manual (cursor) / Scheduled (clock) / Watch (eye). */
+export function createTriggerChip(parent: HTMLElement, triggerType?: string | null): HTMLElement {
+  const tt = triggerType ?? "manual";
+  let icon = "";
+  let label = tt;
+  let variant = "";
+  if (tt === "schedule") { icon = "clock"; label = "Scheduled"; variant = "scheduled"; }
+  else if (tt === "watch") { icon = "eye"; label = "Watch"; variant = "watch"; }
+  else if (tt === "manual" || tt === "none") { icon = "mouse-pointer-click"; label = "Manual"; variant = "manual"; }
+  const chip = parent.createSpan({ cls: "agentmd-chip" + (variant ? " " + variant : "") });
+  if (icon) setIcon(chip.createSpan({ cls: "agentmd-chip-icon" }), icon);
+  chip.createSpan({ text: label });
+  return chip;
+}
+
+/**
+ * Standardized status pills, used in the same slot (next to the name/ID) across
+ * Agents / Live / History. `text` is the count ("2") or timer ("0:18").
+ */
+export function createRunningPill(parent: HTMLElement, text: string, onClick?: (e: MouseEvent) => void): HTMLElement {
+  const pill = parent.createSpan({ cls: "agentmd-pill run" });
+  pill.createSpan({ cls: "agentmd-spin" });
+  pill.createSpan({ text });
+  if (onClick) wirePill(pill, onClick);
+  return pill;
+}
+
+export function createWaitingPill(parent: HTMLElement, text: string, onClick?: (e: MouseEvent) => void): HTMLElement {
+  const pill = parent.createSpan({ cls: "agentmd-pill wait" });
+  setIcon(pill.createSpan({ cls: "agentmd-pill-icon" }), "pause");
+  pill.createSpan({ text });
+  if (onClick) wirePill(pill, onClick);
+  return pill;
+}
+
+/** Terminal-status pill (History): success/failed/aborted with a Lucide icon. */
+export function createResultPill(parent: HTMLElement, status: "success" | "failed" | "aborted"): HTMLElement {
+  const map = {
+    success: { v: "ok", icon: "check", label: "Success" },
+    failed: { v: "err", icon: "x", label: "Failed" },
+    aborted: { v: "ab", icon: "ban", label: "Aborted" },
+  } as const;
+  const m = map[status];
+  const pill = parent.createSpan({ cls: `agentmd-pill ${m.v}` });
+  setIcon(pill.createSpan({ cls: "agentmd-pill-icon" }), m.icon);
+  pill.createSpan({ text: m.label });
+  return pill;
+}
+
+function wirePill(pill: HTMLElement, onClick: (e: MouseEvent) => void): void {
+  pill.addClass("clickable");
+  pill.addEventListener("click", (e) => { e.stopPropagation(); onClick(e); });
+}
+
+/**
+ * Render the "Action needed" block for a waiting execution and wire its controls.
+ * `onRespond(body)` receives the `response` object to POST.
+ */
+export function createActionNeeded(
+  parent: HTMLElement,
+  pending: PendingRequest,
+  onRespond: (body: Record<string, unknown>) => void,
+): HTMLElement {
+  const block = parent.createDiv({ cls: "exec-action-needed" });
+
+  const label = block.createDiv({ cls: "an-label" });
+  const labelIcon = label.createSpan();
+  setIcon(labelIcon, "circle-pause");
+  label.createSpan({ text: " Action needed" });
+
+  block.createDiv({ cls: "an-q", text: pending.message });
+
+  if (pending.tool_name) {
+    const args = pending.tool_args ? ` · ${JSON.stringify(pending.tool_args)}` : "";
+    block.createDiv({ cls: "an-tool", text: `${pending.tool_name}${args}` });
+  }
+
+  let sent = false;
+  const submit = (body: Record<string, unknown>) => {
+    if (sent) return;
+    sent = true;
+    block.querySelectorAll("button, input").forEach(
+      (el) => ((el as HTMLButtonElement | HTMLInputElement).disabled = true),
+    );
+    block.createSpan({ cls: "an-sending", text: "Sending…" });
+    onRespond(body);
+  };
+
+  if (pending.kind === "confirm") {
+    const reason = block.createEl("input", { cls: "agentmd-input an-reason" }) as HTMLInputElement;
+    reason.placeholder = "Reason for denying (optional)";
+    const acts = block.createDiv({ cls: "an-acts" });
+    const approve = acts.createEl("button", { cls: "agentmd-btn primary", text: "✓ Approve" });
+    approve.addEventListener("click", () => submit(buildRespondBody("confirm", { approved: true })));
+    const deny = acts.createEl("button", { cls: "agentmd-btn danger", text: "✕ Deny" });
+    deny.addEventListener("click", () =>
+      submit(buildRespondBody("confirm", { approved: false, reason: reason.value || undefined })),
+    );
+  } else if (pending.kind === "input") {
+    const acts = block.createDiv({ cls: "an-acts" });
+    const input = acts.createEl("input", { cls: "agentmd-input" }) as HTMLInputElement;
+    input.placeholder = "Type your answer…";
+    const send = acts.createEl("button", { cls: "agentmd-btn primary", text: "Send" });
+    const go = () => submit(buildRespondBody("input", { text: input.value }));
+    send.addEventListener("click", go);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  } else {
+    const acts = block.createDiv({ cls: "an-acts" });
+    const options = pending.options ?? [];
+    const selected = new Set<string>();
+    if (!pending.multi) {
+      for (const opt of options) {
+        const chip = acts.createSpan({ cls: "agentmd-chip", text: opt });
+        chip.addEventListener("click", () => submit(buildRespondBody("choice", { selected: [opt] })));
+      }
+    } else {
+      for (const opt of options) {
+        const chip = acts.createSpan({ cls: "agentmd-chip", text: opt });
+        chip.addEventListener("click", () => {
+          if (selected.has(opt)) { selected.delete(opt); chip.removeClass("sel"); }
+          else { selected.add(opt); chip.addClass("sel"); }
+        });
+      }
+      const send = acts.createEl("button", { cls: "agentmd-btn primary", text: "Send" });
+      send.addEventListener("click", () => {
+        if (selected.size === 0) return;
+        submit(buildRespondBody("choice", { selected: [...selected] }));
+      });
+    }
+  }
+
+  return block;
 }
 
 /** Stop pill button ("■ Stop"), hidden until card hover via CSS. */

@@ -1,8 +1,9 @@
-import { Component, MarkdownRenderer } from "obsidian";
+import { Component, MarkdownRenderer, setIcon } from "obsidian";
 import type { PanelContext } from "../panel-view";
 import type { RunningExecution } from "../../store/event-store";
 import type { ExecutionSummary, LogEntry, ParsedSSEEvent } from "../../types";
 import { formatDuration, formatCost } from "../../ui/format";
+import { createActionNeeded } from "../../ui/cards";
 
 export class ExecutionDetailScreen {
   private container: HTMLElement | null = null;
@@ -50,7 +51,7 @@ export class ExecutionDetailScreen {
     if (this.verifyCounter % 3 !== 0) return;
     void (async () => {
       const exec = await this.ctx.actions.fetchExecution(this.id);
-      if (exec && exec.status !== "running" && exec.status !== "pending") {
+      if (exec && exec.status !== "running" && exec.status !== "pending" && exec.status !== "waiting") {
         this.ctx.store.completeExecution(this.id, exec);
       }
     })();
@@ -90,11 +91,13 @@ export class ExecutionDetailScreen {
   // ============================================================
 
   private renderStreaming(container: HTMLElement, run: RunningExecution): void {
-    const header = container.createDiv({ cls: "exec-header streaming" });
+    const waiting = run.state === "waiting";
+    const header = container.createDiv({ cls: waiting ? "exec-header waiting" : "exec-header streaming" });
 
     // Row 1: ● name #id                      ■ Stop
     const titleRow = header.createDiv({ cls: "exec-title" });
-    titleRow.createSpan({ cls: "agentmd-status-running", text: "●" });
+    const statusGlyph = titleRow.createSpan({ cls: waiting ? "agentmd-status-waiting" : "agentmd-status-running" });
+    if (waiting) setIcon(statusGlyph, "circle-pause"); else statusGlyph.setText("●");
     titleRow.createSpan({ cls: "exec-name", text: ` ${run.agent}` });
     titleRow.createSpan({ cls: "exec-id", text: `#${run.id}` });
 
@@ -107,27 +110,39 @@ export class ExecutionDetailScreen {
     });
 
     // Row 2: trigger · running · elapsed
-    const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
+    const elapsed = Math.round(((waiting && run.pausedAt != null ? run.pausedAt : Date.now()) - run.startedAt) / 1000);
     const meta = header.createDiv({ cls: "exec-meta-line" });
     meta.createSpan({ cls: "exec-meta-item", text: run.triggerSource });
     meta.createSpan({ cls: "exec-meta-sep", text: "·" });
-    meta.createSpan({ cls: "exec-meta-item agentmd-status-running", text: "running" });
+    meta.createSpan({ cls: waiting ? "exec-meta-item agentmd-status-waiting" : "exec-meta-item agentmd-status-running", text: waiting ? "waiting" : "running" });
     meta.createSpan({ cls: "exec-meta-sep", text: "·" });
     meta.createSpan({ cls: "exec-meta-item", text: formatDuration(elapsed) });
+
+    if (waiting && run.pending) {
+      const pending = run.pending;
+      createActionNeeded(container, pending, (body) => {
+        this.ctx.actions.onRespond(run.id, pending.request_id, body);
+      });
+    }
 
     // Log area
     const logWrapper = container.createDiv({ cls: "exec-log-wrapper" });
     logWrapper.createDiv({ cls: "exec-log-title", text: "Execution Log" });
     const log = logWrapper.createDiv({ cls: "exec-log" });
 
-    for (const event of run.events) {
-      this.renderLogEvent(log, event);
+    if (waiting) {
+      // Paused: render the persisted, ordered log from the backend (not the live
+      // run.events array, which is empty after reload and duplicated after resubscribe).
+      void this.fillWaitingLog(log, run.id);
+    } else {
+      for (const event of run.events) {
+        this.renderLogEvent(log, event);
+      }
+      log.createSpan({ cls: "log-cursor", text: "▌" });
+      requestAnimationFrame(() => {
+        log.scrollTop = log.scrollHeight;
+      });
     }
-    log.createSpan({ cls: "log-cursor", text: "▌" });
-
-    requestAnimationFrame(() => {
-      log.scrollTop = log.scrollHeight;
-    });
   }
 
   // ============================================================
@@ -143,24 +158,7 @@ export class ExecutionDetailScreen {
     const snapshot = this.ctx.store.getCompletedSnapshot(exec.id);
 
     // Convert API messages to ParsedSSEEvent format (if no live snapshot)
-    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? (apiMessages ?? []).map((m) => {
-      const data: Record<string, unknown> = { event_type: m.event_type, message: m.message };
-      // Parse "tool_name — result" format from DB replay
-      if ((m.event_type === "tool_response" || m.event_type === "tool_result") && m.message.includes(" — ")) {
-        const sep = m.message.indexOf(" — ");
-        data.tool_name = m.message.slice(0, sep);
-        data.message = m.message.slice(sep + 3);
-      }
-      // Parse "tool_name — args: {...}" format for tool_call from DB replay
-      if (m.event_type === "tool_call" && m.message.includes(" — args: ")) {
-        const sep = m.message.indexOf(" — args: ");
-        const toolName = m.message.slice(0, sep);
-        const argsStr = m.message.slice(sep + 9);
-        data.tools = [{ name: toolName, args: argsStr }];
-        data.message = m.message;
-      }
-      return { type: m.event_type, id: String(m.id), data } as ParsedSSEEvent;
-    });
+    const logEvents: ParsedSSEEvent[] = snapshot?.events ?? this.messagesToEvents(apiMessages ?? []);
 
     // Extract final answer from snapshot or from API messages
     const finalAnswerFromLog = logEvents
@@ -260,6 +258,40 @@ export class ExecutionDetailScreen {
   // ============================================================
   //  HELPERS
   // ============================================================
+
+  private messagesToEvents(apiMessages: LogEntry[]): ParsedSSEEvent[] {
+    return apiMessages.map((m) => {
+      const data: Record<string, unknown> = { event_type: m.event_type, message: m.message };
+      if ((m.event_type === "tool_response" || m.event_type === "tool_result") && m.message.includes(" — ")) {
+        const sep = m.message.indexOf(" — ");
+        data.tool_name = m.message.slice(0, sep);
+        data.message = m.message.slice(sep + 3);
+      }
+      if (m.event_type === "tool_call" && m.message.includes(" — args: ")) {
+        const sep = m.message.indexOf(" — args: ");
+        const toolName = m.message.slice(0, sep);
+        const argsStr = m.message.slice(sep + 9);
+        data.tools = [{ name: toolName, args: argsStr }];
+        data.message = m.message;
+      }
+      return { type: m.event_type, id: String(m.id), data } as ParsedSSEEvent;
+    });
+  }
+
+  private async fillWaitingLog(logEl: HTMLElement, id: number): Promise<void> {
+    logEl.createDiv({ cls: "log-line", text: "Loading…" });
+    let messages: LogEntry[] = [];
+    try {
+      messages = await this.ctx.actions.fetchExecutionMessages(id);
+    } catch {
+      /* offline */
+    }
+    if (!logEl.isConnected) return; // detached (user navigated away)
+    logEl.empty();
+    for (const e of this.messagesToEvents(messages)) {
+      this.renderLogEvent(logEl, e);
+    }
+  }
 
   private fmtNum(n: number): string {
     if (n < 1000) return String(n);

@@ -1,0 +1,48 @@
+name: Release
+
+# Push a tag that matches the manifest version (no "v" prefix), e.g. `0.3.0`.
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write      # create the GitHub release
+  id-token: write      # required for attestation signing
+  attestations: write  # write build provenance attestations
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build
+
+      # Cryptographically attest that these assets were built from this repo.
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            styles.css
+            manifest.json
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes "Release $tag" \
+            main.js styles.css manifest.json

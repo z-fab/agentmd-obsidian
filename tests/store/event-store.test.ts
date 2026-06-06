@@ -156,3 +156,74 @@ describe("EventStore.syncRunning", () => {
     expect(store.running.size).toBe(1);
   });
 });
+
+import type { PendingRequest } from "../../src/types";
+
+const PENDING: PendingRequest = { request_id: "r1", kind: "confirm", message: "Approve?", multi: false };
+
+describe("EventStore — HILT waiting", () => {
+  it("marks a tracked execution as waiting and stores the pending request", () => {
+    const store = new EventStore();
+    const cb = vi.fn();
+    store.startExecution(42, "research", "manual");
+    store.onRunningChanged(cb);
+    store.markWaiting(42, PENDING);
+    const run = store.running.get(42)!;
+    expect(run.state).toBe("waiting");
+    expect(run.pending).toEqual(PENDING);
+    expect(store.waitingCount).toBe(1);
+    expect(cb).toHaveBeenCalled();
+  });
+
+  it("creates the entry if markWaiting targets an untracked execution", () => {
+    const store = new EventStore();
+    store.markWaiting(99, { ...PENDING, request_id: "r9" }, "scheduled-agent");
+    const run = store.running.get(99)!;
+    expect(run.state).toBe("waiting");
+    expect(run.agent).toBe("scheduled-agent");
+  });
+
+  it("markResuming clears pending and returns to running", () => {
+    const store = new EventStore();
+    store.startExecution(42, "research", "manual");
+    store.markWaiting(42, PENDING);
+    store.markResuming(42);
+    const run = store.running.get(42)!;
+    expect(run.state).toBe("running");
+    expect(run.pending).toBeUndefined();
+    expect(store.waitingCount).toBe(0);
+  });
+
+  it("new running executions default to state=running", () => {
+    const store = new EventStore();
+    store.startExecution(1, "a", "manual");
+    expect(store.running.get(1)!.state).toBe("running");
+  });
+});
+
+describe("EventStore — syncRunning preserves waiting", () => {
+  it("does not remove a waiting execution that is absent from the running list", () => {
+    const store = new EventStore();
+    store.startExecution(7, "a", "manual");
+    store.markWaiting(7, { request_id: "r", kind: "confirm", message: "?", multi: false });
+    // a sync of status=running executions that does NOT include #7
+    store.syncRunning([]);
+    expect(store.running.has(7)).toBe(true);
+    expect(store.running.get(7)!.state).toBe("waiting");
+  });
+});
+
+describe("EventStore — HILT timer pause", () => {
+  it("records pausedAt on markWaiting and clears it + shifts startedAt on resume", () => {
+    const store = new EventStore();
+    store.startExecution(1, "a", "manual");
+    const run = store.running.get(1)!;
+    const started0 = run.startedAt;
+    store.markWaiting(1, { request_id: "r", kind: "confirm", message: "?", multi: false });
+    expect(run.pausedAt).toBeGreaterThan(0);
+    store.markResuming(1);
+    expect(run.pausedAt).toBeUndefined();
+    expect(run.startedAt).toBeGreaterThanOrEqual(started0);
+    expect(run.state).toBe("running");
+  });
+});

@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { Notice, Plugin, setIcon } from "obsidian";
 import { AgentmdClient } from "./src/client/agentmd-client";
 import { GlobalSSEConnection } from "./src/client/global-sse";
 import { BackendMonitor } from "./src/backend-monitor";
@@ -8,7 +8,9 @@ import { PanelView } from "./src/views/panel-view";
 import { AgentmdSettingTab } from "./src/settings-tab";
 import { VIEW_TYPE_PANEL } from "./src/views/constants";
 import { DEFAULT_SETTINGS, type AgentmdSettings } from "./src/settings";
+import { pendingFromSSE, pendingFromResponse } from "./src/views/hilt";
 import type { ExecutionSummary, GlobalSSEExecutionStarted, GlobalSSEExecutionCompleted, GlobalSSESchedulerChanged } from "./src/types";
+import type { PendingRequest } from "./src/types";
 
 export default class AgentmdPlugin extends Plugin {
   private client!: AgentmdClient;
@@ -19,8 +21,13 @@ export default class AgentmdPlugin extends Plugin {
   settings!: AgentmdSettings;
   private statusBarEl!: HTMLElement;
   private unsubMonitor: (() => void) | null = null;
+  private unsubRunning: (() => void) | null = null;
   /** Map of execution ID -> SSE close function */
   private sseConnections = new Map<number, () => void>();
+  /** request_ids we already showed a pause Notice for (dedup notifications). */
+  private notifiedRequests = new Set<string>();
+  /** request_ids we already responded to (skip replayed interrupt events on resubscribe). */
+  private answeredRequests = new Set<string>();
 
   async onload(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -53,6 +60,7 @@ export default class AgentmdPlugin extends Plugin {
     this.statusBarEl.addClass("agentmd-status-bar");
     this.renderStatusBar();
     this.unsubMonitor = this.monitor.subscribe(() => this.renderStatusBar());
+    this.unsubRunning = this.store.onRunningChanged(() => this.renderStatusBar());
 
     // Status bar click -> start or stop
     this.statusBarEl.addEventListener("click", () => {
@@ -68,6 +76,7 @@ export default class AgentmdPlugin extends Plugin {
       new PanelView(leaf, this.store, {
         onRunAgent: (name, withFile) => this.runAgent(name, withFile),
         onCancelExecution: (id) => this.cancelExecution(id),
+        onRespond: (id, requestId, response) => void this.respondToExecution(id, requestId, response),
         onRefreshAgents: () => void this.refreshAgents(),
         onOpenSourceFile: (name) => this.openSourceFile(name),
         onRerun: (name) => this.runAgent(name, false),
@@ -145,6 +154,7 @@ export default class AgentmdPlugin extends Plugin {
     this.globalSSE?.stop();
     this.monitor?.stop();
     this.unsubMonitor?.();
+    this.unsubRunning?.();
     for (const close of this.sseConnections.values()) close();
     this.sseConnections.clear();
     document.body.style.removeProperty("--agentmd-accent");
@@ -194,6 +204,22 @@ export default class AgentmdPlugin extends Plugin {
       return;
     }
 
+    if (type === "execution_waiting") {
+      const evt = data as unknown as { execution_id: number; agent_name: string };
+      void (async () => {
+        if (this.store.running.get(evt.execution_id)?.state === "waiting") return; // already known
+        try {
+          const pending = pendingFromResponse(await this.client.getPending(evt.execution_id));
+          if (this.answeredRequests.has(pending.request_id)) return;
+          this.store.markWaiting(evt.execution_id, pending, evt.agent_name);
+          this.notifyPaused(evt.execution_id, pending);
+        } catch {
+          /* pending may have been answered already (404) */
+        }
+      })();
+      return;
+    }
+
     if (type === "agents_changed") {
       void this.refreshAgents();
       return;
@@ -233,6 +259,18 @@ export default class AgentmdPlugin extends Plugin {
           this.subscribeToExecution(id);
         }
       }
+
+      try {
+        const waiting = await this.client.listExecutions({ status: "waiting", limit: 50 });
+        for (const w of waiting) {
+          if (this.store.running.get(w.id)?.state === "waiting") continue;
+          try {
+            const pending = pendingFromResponse(await this.client.getPending(w.id));
+            if (this.answeredRequests.has(pending.request_id)) continue;
+            this.store.markWaiting(w.id, pending, w.agent_id);
+          } catch { /* answered already */ }
+        }
+      } catch { /* offline */ }
     } catch {
       // Backend may not be fully ready
     }
@@ -291,15 +329,58 @@ export default class AgentmdPlugin extends Plugin {
         await this.openExecutionDetail(execution_id);
       }
     } catch (err) {
-      new Notice(`Failed to run ${name}: ${(err as Error).message}`);
+      const e = err as { statusCode?: number };
+      if (e.statusCode === 409) {
+        new Notice(`"${name}" is waiting for your response — answer it in the Live tab before running it again.`, 8000);
+      } else {
+        new Notice(`Failed to run ${name}: ${(err as Error).message}`);
+      }
     }
   }
 
   private async cancelExecution(id: number): Promise<void> {
+    const run = this.store.running.get(id);
+    const wasWaiting = run?.state === "waiting";
     try {
       await this.client.cancelExecution(id);
     } catch {
       // May already be finished
+    }
+    if (wasWaiting && run) {
+      // A waiting execution has no live task, so the backend won't emit a
+      // completion event — update the store ourselves.
+      if (run.pending) this.answeredRequests.add(run.pending.request_id);
+      this.store.completeExecution(id, {
+        id,
+        agent_id: run.agent,
+        status: "aborted",
+        trigger: run.triggerSource,
+        started_at: new Date(run.startedAt).toISOString(),
+      });
+      this.sseConnections.get(id)?.();
+      this.sseConnections.delete(id);
+    }
+  }
+
+  private async respondToExecution(id: number, requestId: string, response: Record<string, unknown>): Promise<void> {
+    try {
+      await this.client.respond(id, requestId, response);
+      this.answeredRequests.add(requestId);
+      this.notifiedRequests.delete(requestId);
+      this.store.markResuming(id);                       // back to running; detail re-renders streaming
+      if (!this.sseConnections.has(id)) this.subscribeToExecution(id); // reopen to observe the resume
+    } catch (err) {
+      const e = err as { statusCode?: number };
+      if (e.statusCode === 409) {
+        new Notice("That request was already handled.");
+        this.answeredRequests.add(requestId);
+        try {
+          const exec = await this.client.getExecution(id);
+          if (exec.status !== "waiting") this.store.markResuming(id);
+        } catch { /* ignore */ }
+      } else {
+        new Notice(`Failed to send response: ${(err as Error).message}`);
+      }
     }
   }
 
@@ -307,6 +388,15 @@ export default class AgentmdPlugin extends Plugin {
     const close = this.client.openSSE(
       `/executions/${executionId}/stream`,
       (event) => {
+        if (event.type === "interrupt") {
+          const pending = pendingFromSSE(event.data);
+          if (pending && !this.answeredRequests.has(pending.request_id)) {
+            const wasWaiting = this.store.running.get(executionId)?.state === "waiting";
+            this.store.markWaiting(executionId, pending);
+            if (!wasWaiting) this.notifyPaused(executionId, pending);
+          }
+          return;
+        }
         this.store.pushEvent(executionId, event);
         if (event.type === "complete") {
           // Guard: global SSE may have already completed this execution
@@ -339,6 +429,15 @@ export default class AgentmdPlugin extends Plugin {
       },
     );
     this.sseConnections.set(executionId, close);
+  }
+
+  private notifyPaused(executionId: number, pending: PendingRequest): void {
+    if (this.notifiedRequests.has(pending.request_id)) return;
+    this.notifiedRequests.add(pending.request_id);
+    const agent = this.store.running.get(executionId)?.agent ?? "Agent";
+    const notice = new Notice(`✋ ${agent} needs your input`, 10000);
+    notice.noticeEl.style.cursor = "pointer";
+    notice.noticeEl.addEventListener("click", () => { void this.openExecutionDetail(executionId); });
   }
 
   private notifyCompletion(summary: ExecutionSummary): void {
@@ -441,6 +540,16 @@ export default class AgentmdPlugin extends Plugin {
       dot.setText("○");
       this.statusBarEl.removeClass("agentmd-status-online", "agentmd-status-fallback");
       this.statusBarEl.addClass("agentmd-status-offline");
+    }
+
+    const waitingN = this.store.waitingCount;
+    if (waitingN > 0) {
+      const w = this.statusBarEl.createSpan({ cls: "agentmd-statusbar-waiting" });
+      const ic = w.createSpan({ cls: "agentmd-statusbar-waiting-icon" });
+      setIcon(ic, "pause");
+      w.createSpan({ text: String(waitingN) });
+      w.setAttr("aria-label", `${waitingN} waiting for a response`);
+      w.addEventListener("click", (e) => { e.stopPropagation(); void this.activatePanel("live"); });
     }
   }
 }
